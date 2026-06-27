@@ -20,6 +20,7 @@ Run checks:
 cargo test
 python -m unittest discover -s tests
 python tools/rust_hot_leaf_guard.py rust/hot_leaf rust/ffi_static
+powershell -ExecutionPolicy Bypass -File tools/run_size_gate.ps1
 ```
 
 Release size guard example:
@@ -27,6 +28,7 @@ Release size guard example:
 ```powershell
 cargo build --release -p chromium_rust_perf_ffi_static
 python tools/rust_hot_leaf_guard.py rust/hot_leaf rust/ffi_static --artifact target/release/chromium_rust_perf_ffi_static.lib
+python tools/rust_size_gate.py --artifact target/release/chromium_rust_perf_ffi_static.lib --max-registry-packages 0
 ```
 
 Local C++ harnesses:
