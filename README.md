@@ -31,6 +31,11 @@ python tools/rust_hot_leaf_guard.py rust/hot_leaf rust/ffi_static --artifact tar
 python tools/rust_size_gate.py --artifact target/release/chromium_rust_perf_ffi_static.lib --max-registry-packages 0
 ```
 
+Committed budgets live under `budgets/`:
+
+- `budgets/rust_artifacts_size.json`
+- `budgets/http_header_scanner_perf.json`
+
 Local C++ harnesses:
 
 ```powershell

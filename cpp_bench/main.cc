@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <cstring>
 #include <fstream>
+#include <algorithm>
 #include <vector>
 #include "cpp/http_header_scanner_adapter.h"
 
@@ -34,7 +35,20 @@ struct BenchmarkResult {
     double speedup;
 };
 
-BenchmarkResult RunBenchmark(const char* name, const uint8_t* data, size_t len, size_t iterations) {
+double Median(std::vector<double> values) {
+    std::sort(values.begin(), values.end());
+    return values[values.size() / 2];
+}
+
+double Best(const std::vector<double>& values) {
+    return *std::min_element(values.begin(), values.end());
+}
+
+BenchmarkResult RunBenchmark(const char* name,
+                             const uint8_t* data,
+                             size_t len,
+                             size_t iterations,
+                             size_t samples) {
     using namespace chromium_rust_perf;
     
     HttpHeaderScanOptions options{100, 1000};
@@ -48,27 +62,34 @@ BenchmarkResult RunBenchmark(const char* name, const uint8_t* data, size_t len, 
         Keep(r1.header_end_offset + r2.header_end_offset);
     }
 
-    // Rust Benchmark
-    auto start_rust = std::chrono::high_resolution_clock::now();
-    for (size_t i = 0; i < iterations; ++i) {
-        auto r = rust_scanner.Scan(data, len);
-        Keep(r.header_end_offset);
-    }
-    auto end_rust = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::nano> elapsed_rust = end_rust - start_rust;
-    double avg_rust = elapsed_rust.count() / iterations;
+    std::vector<double> rust_samples;
+    std::vector<double> cpp_samples;
+    rust_samples.reserve(samples);
+    cpp_samples.reserve(samples);
 
-    // C++ Baseline Benchmark
-    auto start_cpp = std::chrono::high_resolution_clock::now();
-    for (size_t i = 0; i < iterations; ++i) {
-        auto r = cpp_scanner.Scan(data, len);
-        Keep(r.header_end_offset);
-    }
-    auto end_cpp = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::nano> elapsed_cpp = end_cpp - start_cpp;
-    double avg_cpp = elapsed_cpp.count() / iterations;
+    for (size_t sample = 0; sample < samples; ++sample) {
+        auto start_rust = std::chrono::high_resolution_clock::now();
+        for (size_t i = 0; i < iterations; ++i) {
+            auto r = rust_scanner.Scan(data, len);
+            Keep(r.header_end_offset);
+        }
+        auto end_rust = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::nano> elapsed_rust = end_rust - start_rust;
+        rust_samples.push_back(elapsed_rust.count() / iterations);
 
-    double ratio = avg_cpp / avg_rust;
+        auto start_cpp = std::chrono::high_resolution_clock::now();
+        for (size_t i = 0; i < iterations; ++i) {
+            auto r = cpp_scanner.Scan(data, len);
+            Keep(r.header_end_offset);
+        }
+        auto end_cpp = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::nano> elapsed_cpp = end_cpp - start_cpp;
+        cpp_samples.push_back(elapsed_cpp.count() / iterations);
+    }
+
+    const double avg_rust = Best(rust_samples);
+    const double avg_cpp = Best(cpp_samples);
+    const double ratio = avg_cpp / avg_rust;
 
     std::cout << "| " << std::left << std::setw(20) << name
               << " | " << std::right << std::setw(12) << std::fixed << std::setprecision(2) << avg_rust << " ns"
@@ -127,11 +148,18 @@ bool WriteJsonReport(const char* path,
 
 int main(int argc, char** argv) {
     const char* json_output = nullptr;
+    size_t samples = 7;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--json") == 0 && i + 1 < argc) {
             json_output = argv[++i];
+        } else if (std::strcmp(argv[i], "--samples") == 0 && i + 1 < argc) {
+            samples = static_cast<size_t>(std::strtoull(argv[++i], nullptr, 10));
+            if (samples == 0) {
+                std::cerr << "--samples must be greater than zero" << std::endl;
+                return 2;
+            }
         } else {
-            std::cerr << "Usage: " << argv[0] << " [--json output.json]" << std::endl;
+            std::cerr << "Usage: " << argv[0] << " [--json output.json] [--samples N]" << std::endl;
             return 2;
         }
     }
@@ -149,9 +177,9 @@ int main(int argc, char** argv) {
     std::vector<BenchmarkResult> results;
     results.reserve(3);
 
-    results.push_back(RunBenchmark("Small Header", reinterpret_cast<const uint8_t*>(SMALL_PAYLOAD), std::strlen(SMALL_PAYLOAD), iterations));
-    results.push_back(RunBenchmark("Large Header", reinterpret_cast<const uint8_t*>(LARGE_PAYLOAD), std::strlen(LARGE_PAYLOAD), iterations));
-    results.push_back(RunBenchmark("Malformed Header", reinterpret_cast<const uint8_t*>(MALFORMED_PAYLOAD), std::strlen(MALFORMED_PAYLOAD), iterations));
+    results.push_back(RunBenchmark("Small Header", reinterpret_cast<const uint8_t*>(SMALL_PAYLOAD), std::strlen(SMALL_PAYLOAD), iterations, samples));
+    results.push_back(RunBenchmark("Large Header", reinterpret_cast<const uint8_t*>(LARGE_PAYLOAD), std::strlen(LARGE_PAYLOAD), iterations, samples));
+    results.push_back(RunBenchmark("Malformed Header", reinterpret_cast<const uint8_t*>(MALFORMED_PAYLOAD), std::strlen(MALFORMED_PAYLOAD), iterations, samples));
 
     std::cout << "================================================================" << std::endl;
     if (json_output != nullptr) {

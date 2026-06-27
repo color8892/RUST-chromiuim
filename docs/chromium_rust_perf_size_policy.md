@@ -15,6 +15,7 @@
 - 每個 migration 必須有 differential tests、fuzz target plan、microbenchmark、binary size diff、rollback flag。
 - 每個 migration 必須跑 `tools/rust_size_gate.py` 或等價 CI step，輸出 artifact bytes、registry dependency count 與 JSON report。
 - 每個 microbenchmark 必須輸出 machine-readable JSON，並由 `tools/rust_perf_gate.py` 或等價 CI step 檢查 speedup、latency cap 或 regression budget。
+- 每個已接受的 artifact / benchmark 必須有 committed budget file；budget update 必須伴隨新的 benchmark/size 證據。
 
 ## Hot Path ABI
 

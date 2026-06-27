@@ -126,6 +126,6 @@ Write-Host "           Running C++ Microbenchmark                           "
 Write-Host "================================================================"
 $reportPath = "target/bench/http_header_scanner.json"
 New-Item -ItemType Directory -Force -Path (Split-Path $reportPath) | Out-Null
-& $outputExe --json $reportPath
-python tools/rust_perf_gate.py --report $reportPath
+& $outputExe --json $reportPath --samples 7
+python tools/rust_perf_gate.py --report $reportPath --budget-file budgets/http_header_scanner_perf.json
 Write-Host ""

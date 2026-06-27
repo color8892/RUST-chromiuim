@@ -29,6 +29,7 @@ python tools/rust_size_gate.py `
     --artifact $staticLib `
     --artifact target/release/libchromium_rust_http_header_scanner.rlib `
     --artifact target/release/libchromium_rust_url_canonicalizer.rlib `
+    --budget-file budgets/rust_artifacts_size.json `
     --max-registry-packages 0 `
     --json-output target/size-gate/report.json
 
