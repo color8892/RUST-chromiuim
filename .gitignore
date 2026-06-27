@@ -1,0 +1,12 @@
+/.codegraph/
+/.codebase-memory/
+/target/
+__pycache__/
+*.py[cod]
+*.pdb
+*.ilk
+*.obj
+*.o
+*.a
+*.lib
+*.rlib
