@@ -84,6 +84,7 @@ if ($compiler -eq "clang++") {
         "cpp_fuzz/main.cc",
         "cpp/http_header_scanner_adapter.cc",
         "cpp/url_canonicalizer_adapter.cc",
+        "cpp/mojo_validator_adapter.cc",
         $libPath,
         "-o", $outputExe
     )
@@ -104,6 +105,7 @@ if ($compiler -eq "clang++") {
         "cpp_fuzz/main.cc",
         "cpp/http_header_scanner_adapter.cc",
         "cpp/url_canonicalizer_adapter.cc",
+        "cpp/mojo_validator_adapter.cc",
         $libPath,
         "/Fe$outputExe"
     )
@@ -125,7 +127,7 @@ Write-Host ""
 Write-Host "================================================================"
 Write-Host "           Running C++ Mutation Fuzz (5M Iterations)            "
 Write-Host "================================================================"
-& $outputExe
+& $outputExe $args
 $exitCode = $LASTEXITCODE
 
 Write-Host ""

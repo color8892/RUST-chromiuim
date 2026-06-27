@@ -219,6 +219,80 @@ public:
         result.status = UrlScanStatus::kOk;
         return result;
     }
+
+    static ptrdiff_t CanonicalizeHost(const uint8_t* host_data, size_t host_len, uint8_t* out_data, size_t out_max_len) noexcept {
+        if (host_len > out_max_len) {
+            return -1;
+        }
+        for (size_t i = 0; i < host_len; ++i) {
+            uint8_t b = host_data[i];
+            if (b <= 32 || b >= 127 || b == '/' || b == '?' || b == '#') {
+                return -1;
+            }
+            if (b >= 'A' && b <= 'Z') {
+                out_data[i] = b - 'A' + 'a';
+            } else {
+                out_data[i] = b;
+            }
+        }
+        return static_cast<ptrdiff_t>(host_len);
+    }
+
+    static ptrdiff_t PercentDecodeSafe(const uint8_t* in_data, size_t in_len, uint8_t* out_data, size_t out_max_len) noexcept {
+        size_t in_idx = 0;
+        size_t out_idx = 0;
+
+        auto hex_val = [](uint8_t c) -> int {
+            if (c >= '0' && c <= '9') return c - '0';
+            if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+            if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+            return -1;
+        };
+
+        while (in_idx < in_len) {
+            uint8_t b = in_data[in_idx];
+            if (b == '%') {
+                if (in_idx + 2 < in_len) {
+                    int d1 = hex_val(in_data[in_idx + 1]);
+                    int d2 = hex_val(in_data[in_idx + 2]);
+                    if (d1 >= 0 && d2 >= 0) {
+                        uint8_t decoded = static_cast<uint8_t>((d1 << 4) | d2);
+                        bool is_alnum = (decoded >= '0' && decoded <= '9') ||
+                                        (decoded >= 'a' && decoded <= 'z') ||
+                                        (decoded >= 'A' && decoded <= 'Z') ||
+                                        decoded == '-' || decoded == '.' ||
+                                        decoded == '_' || decoded == '~';
+                        if (is_alnum) {
+                            if (out_idx < out_max_len) {
+                                out_data[out_idx++] = decoded;
+                            } else {
+                                return -1;
+                            }
+                        } else {
+                            if (out_idx + 2 < out_max_len) {
+                                out_data[out_idx++] = '%';
+                                out_data[out_idx++] = in_data[in_idx + 1];
+                                out_data[out_idx++] = in_data[in_idx + 2];
+                            } else {
+                                return -1;
+                            }
+                        }
+                        in_idx += 3;
+                        continue;
+                    }
+                }
+                return -1;
+            } else {
+                if (out_idx < out_max_len) {
+                    out_data[out_idx++] = b;
+                } else {
+                    return -1;
+                }
+                in_idx += 1;
+            }
+        }
+        return static_cast<ptrdiff_t>(out_idx);
+    }
 };
 
 } // namespace chromium_rust_perf

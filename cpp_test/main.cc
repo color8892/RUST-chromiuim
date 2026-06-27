@@ -8,6 +8,9 @@
 #include "cpp/http_header_scanner_baseline.h"
 #include "cpp/url_canonicalizer_adapter.h"
 #include "cpp/url_canonicalizer_baseline.h"
+#include "cpp/mojo_validator_adapter.h"
+#include "cpp/mojo_validator_baseline.h"
+#include "cpp/test_fixtures.h"
 
 int g_test_count = 0;
 int g_fail_count = 0;
@@ -57,10 +60,9 @@ void RunUnitTests() {
     using namespace chromium_rust_perf;
     std::cout << "[Unit Tests] Running API contract checks..." << std::endl;
 
-    // Test Ok Path
-    {
-        const char* p = "Host: example.test\r\nConnection: close\r\n\r\n";
-        AssertIdentical("OkPath", reinterpret_cast<const uint8_t*>(p), std::strlen(p), 10, 100);
+    // Run corpus fixtures
+    for (const auto& fixture : GetHeaderFixtures()) {
+        AssertIdentical(fixture.name.c_str(), fixture.data.data(), fixture.data.size(), fixture.max_lines, fixture.max_line_length);
     }
 
     // Test Incomplete
@@ -225,13 +227,68 @@ void AssertUrlIdentical(const char* test_name, const uint8_t* data, size_t len) 
     EXPECT_EQ(rust_res.ok(), cpp_res.ok(), context.c_str());
 }
 
+void AssertUrlCanonicalizeIdentical(const char* test_name, const uint8_t* host_data, size_t host_len) {
+    using namespace chromium_rust_perf;
+    UrlScanner scanner;
+
+    uint8_t rust_out[256] = {0};
+    uint8_t cpp_out[256] = {0};
+
+    // Set rollback false to call Rust
+    UrlScanner::SetRollbackEnabled(false);
+    ptrdiff_t rust_res = scanner.CanonicalizeHost(host_data, host_len, rust_out, sizeof(rust_out));
+
+    // Set rollback true to call C++ baseline
+    UrlScanner::SetRollbackEnabled(true);
+    ptrdiff_t cpp_res = scanner.CanonicalizeHost(host_data, host_len, cpp_out, sizeof(cpp_out));
+
+    UrlScanner::SetRollbackEnabled(false); // Reset
+
+    std::string context = std::string(test_name) + " (len=" + std::to_string(host_len) + ")";
+    EXPECT_EQ(rust_res, cpp_res, context.c_str());
+    if (rust_res >= 0) {
+        for (ptrdiff_t i = 0; i < rust_res; ++i) {
+            EXPECT_EQ(rust_out[i], cpp_out[i], context.c_str());
+        }
+    }
+}
+
+void AssertUrlPercentDecodeIdentical(const char* test_name, const uint8_t* in_data, size_t in_len) {
+    using namespace chromium_rust_perf;
+    UrlScanner scanner;
+
+    uint8_t rust_out[256] = {0};
+    uint8_t cpp_out[256] = {0};
+
+    // Set rollback false to call Rust
+    UrlScanner::SetRollbackEnabled(false);
+    ptrdiff_t rust_res = scanner.PercentDecodeSafe(in_data, in_len, rust_out, sizeof(rust_out));
+
+    // Set rollback true to call C++ baseline
+    UrlScanner::SetRollbackEnabled(true);
+    ptrdiff_t cpp_res = scanner.PercentDecodeSafe(in_data, in_len, cpp_out, sizeof(cpp_out));
+
+    UrlScanner::SetRollbackEnabled(false); // Reset
+
+    std::string context = std::string(test_name) + " (len=" + std::to_string(in_len) + ")";
+    EXPECT_EQ(rust_res, cpp_res, context.c_str());
+    if (rust_res >= 0) {
+        for (ptrdiff_t i = 0; i < rust_res; ++i) {
+            EXPECT_EQ(rust_out[i], cpp_out[i], context.c_str());
+        }
+    }
+}
+
 void RunUrlUnitTests() {
     using namespace chromium_rust_perf;
     std::cout << "[URL Unit Tests] Running basic API checks..." << std::endl;
 
+    // Run corpus fixtures
+    for (const auto& fixture : GetUrlFixtures()) {
+        AssertUrlIdentical(fixture.name.c_str(), fixture.data.data(), fixture.data.size());
+    }
+
     UrlScanner scanner;
-    
-    // 1. Valid URLs
     {
         auto res = scanner.Scan("http://example.com/path?q=1#hash");
         EXPECT_EQ(static_cast<uint32_t>(res.status), static_cast<uint32_t>(UrlScanStatus::kOk), "UrlValidStatus");
@@ -292,6 +349,7 @@ void RunUrlDifferentialTests() {
     };
 
     for (const auto& seed : seeds) {
+        std::cout << "  -> Seed: " << seed << std::endl;
         size_t total_len = seed.length();
         const uint8_t* seed_bytes = reinterpret_cast<const uint8_t*>(seed.data());
 
@@ -323,6 +381,24 @@ void RunUrlDifferentialTests() {
             mutated[i] = original;
         }
     }
+
+    // Differential testing for host canonicalization
+    std::vector<std::string> hosts = {
+        "google.com", "GOOgle.COM", "127.0.0.1", "[::1]", "invalid/host", "space host", "host?", "host#"
+    };
+    for (const auto& h : hosts) {
+        std::cout << "  -> Host: " << h << std::endl;
+        AssertUrlCanonicalizeIdentical("HostCanonicalize", reinterpret_cast<const uint8_t*>(h.data()), h.length());
+    }
+
+    // Differential testing for percent decoding
+    std::vector<std::string> decodes = {
+        "hello%41world", "hello%2fworld", "hello%2Fworld", "hello%2gworld", "hello%", "hello%1", "A%30B%7aC"
+    };
+    for (const auto& d : decodes) {
+        std::cout << "  -> Decode: " << d << std::endl;
+        AssertUrlPercentDecodeIdentical("PercentDecode", reinterpret_cast<const uint8_t*>(d.data()), d.length());
+    }
 }
 
 void TestUrlRollbackMechanism() {
@@ -352,6 +428,159 @@ void TestUrlRollbackMechanism() {
     EXPECT_EQ(static_cast<uint32_t>(res3.status), static_cast<uint32_t>(UrlScanStatus::kOk), "UrlRollbackFalseRestore");
 }
 
+void AssertMojoIdentical(const char* test_name, const uint8_t* data, size_t len, const chromium_rust_perf::MojoSchemaTable* schema) {
+    using namespace chromium_rust_perf;
+    MojoMessageValidator rust_validator;
+    
+    MojoValidateResult rust_res = rust_validator.Validate(data, len, schema);
+    MojoValidateResult cpp_res = CppBaselineMojoValidator::Validate(data, len, schema);
+
+    std::string context = std::string(test_name) + " (len=" + std::to_string(len) + ")";
+
+    EXPECT_EQ(rust_res.status, cpp_res.status, context.c_str());
+    EXPECT_EQ(rust_res.error_offset, cpp_res.error_offset, context.c_str());
+}
+
+void RunMojoUnitTests() {
+    using namespace chromium_rust_perf;
+    std::cout << "[Mojo Unit Tests] Running basic API checks..." << std::endl;
+
+    MojoMessageValidator validator;
+
+    // Define field constraints and method constraint
+    MojoFieldConstraint fields[] = {
+        {0, 4, 0}, // Non-nullable, size 4, offset 0
+        {4, 8, 1}  // Nullable, size 8, offset 4
+    };
+    MojoMethodConstraint methods[] = {
+        {100, 16, fields, 2} // method_id 100, expected payload size 16
+    };
+    MojoSchemaTable schema = {methods, 1};
+
+    // 1. Valid Mojo Message
+    {
+        std::vector<uint8_t> msg(40, 0); // 24 bytes header + 16 bytes payload
+        // Set header size
+        uint32_t header_size = 24;
+        std::memcpy(&msg[0], &header_size, 4);
+        // Set method id
+        uint32_t method_id = 100;
+        std::memcpy(&msg[12], &method_id, 4);
+
+        auto res = validator.Validate(msg.data(), msg.size(), &schema);
+        EXPECT_EQ(res.status, static_cast<uint32_t>(MojoValidateStatus::kOk), "MojoValidStatus");
+    }
+
+    // 2. Message Too Short
+    {
+        std::vector<uint8_t> msg(20, 0);
+        auto res = validator.Validate(msg.data(), msg.size(), &schema);
+        EXPECT_EQ(res.status, static_cast<uint32_t>(MojoValidateStatus::kMessageTooShort), "MojoTooShortStatus");
+    }
+
+    // 3. Invalid Header Size
+    {
+        std::vector<uint8_t> msg(40, 0);
+        uint32_t header_size = 25; // not 24 or 32
+        std::memcpy(&msg[0], &header_size, 4);
+        auto res = validator.Validate(msg.data(), msg.size(), &schema);
+        EXPECT_EQ(res.status, static_cast<uint32_t>(MojoValidateStatus::kInvalidHeaderSize), "MojoInvalidHeaderSize");
+    }
+
+    // 4. Invalid Alignment
+    {
+        std::vector<uint8_t> msg(40, 0);
+        uint32_t header_size = 28; // not multiple of 8
+        std::memcpy(&msg[0], &header_size, 4);
+        auto res = validator.Validate(msg.data(), msg.size(), &schema);
+        EXPECT_EQ(res.status, static_cast<uint32_t>(MojoValidateStatus::kInvalidHeaderSize), "MojoInvalidHeaderAlignment");
+    }
+}
+
+void RunMojoDifferentialTests() {
+    using namespace chromium_rust_perf;
+    std::cout << "[Mojo Differential Tests] Running prefix and mutation scans..." << std::endl;
+
+    MojoFieldConstraint fields[] = {
+        {0, 4, 0},
+        {4, 8, 1}
+    };
+    MojoMethodConstraint methods[] = {
+        {100, 16, fields, 2}
+    };
+    MojoSchemaTable schema = {methods, 1};
+
+    std::vector<uint8_t> seed(40, 0);
+    uint32_t header_size = 24;
+    std::memcpy(&seed[0], &header_size, 4);
+    uint32_t method_id = 100;
+    std::memcpy(&seed[12], &method_id, 4);
+
+    size_t total_len = seed.size();
+
+    // Truncation scans
+    for (size_t len = 0; len <= total_len; ++len) {
+        AssertMojoIdentical("TruncatedMojo", seed.data(), len, &schema);
+    }
+
+    // Single-byte corruption mutations
+    std::vector<uint8_t> mutated = seed;
+    for (size_t i = 0; i < total_len; ++i) {
+        uint8_t original = mutated[i];
+
+        // Mutation 1: NUL byte
+        mutated[i] = 0;
+        AssertMojoIdentical("MojoMutatedNul", mutated.data(), total_len, &schema);
+
+        // Mutation 2: Space
+        mutated[i] = 32;
+        AssertMojoIdentical("MojoMutatedSpace", mutated.data(), total_len, &schema);
+
+        // Mutation 3: Random high value
+        mutated[i] = 255;
+        AssertMojoIdentical("MojoMutatedRandom", mutated.data(), total_len, &schema);
+
+        mutated[i] = original; // restore
+    }
+}
+
+void TestMojoRollbackMechanism() {
+    using namespace chromium_rust_perf;
+    std::cout << "[Mojo Rollback Tests] Running feature flag & fallback checks..." << std::endl;
+
+    MojoMessageValidator validator;
+    MojoFieldConstraint fields[] = {
+        {0, 4, 0},
+        {4, 8, 1}
+    };
+    MojoMethodConstraint methods[] = {
+        {100, 16, fields, 2}
+    };
+    MojoSchemaTable schema = {methods, 1};
+
+    std::vector<uint8_t> msg(40, 0);
+    uint32_t header_size = 24;
+    std::memcpy(&msg[0], &header_size, 4);
+    uint32_t method_id = 100;
+    std::memcpy(&msg[12], &method_id, 4);
+
+    // 1. Rollback Disabled (Default)
+    MojoMessageValidator::SetRollbackEnabled(false);
+    EXPECT_TRUE(!MojoMessageValidator::IsRollbackEnabled(), "MojoRollbackFalse");
+    auto res1 = validator.Validate(msg.data(), msg.size(), &schema);
+    EXPECT_EQ(res1.status, static_cast<uint32_t>(MojoValidateStatus::kOk), "MojoRollbackFalseOk");
+
+    // 2. Enable Rollback
+    MojoMessageValidator::SetRollbackEnabled(true);
+    EXPECT_TRUE(MojoMessageValidator::IsRollbackEnabled(), "MojoRollbackTrueSet");
+    auto res2 = validator.Validate(msg.data(), msg.size(), &schema);
+    EXPECT_EQ(res2.status, static_cast<uint32_t>(MojoValidateStatus::kOk), "MojoRollbackTrueOk");
+
+    // 3. Reset
+    MojoMessageValidator::SetRollbackEnabled(false);
+    EXPECT_TRUE(!MojoMessageValidator::IsRollbackEnabled(), "MojoRollbackFalseReset");
+}
+
 int main() {
     std::cout << "================================================================" << std::endl;
     std::cout << "         Chromium Rust C++ & FFI Differential Tests             " << std::endl;
@@ -364,6 +593,10 @@ int main() {
     RunUrlUnitTests();
     RunUrlDifferentialTests();
     TestUrlRollbackMechanism();
+
+    RunMojoUnitTests();
+    RunMojoDifferentialTests();
+    TestMojoRollbackMechanism();
 
     std::cout << "================================================================" << std::endl;
     std::cout << "Tests Run: " << g_test_count << " | Failures: " << g_fail_count << std::endl;

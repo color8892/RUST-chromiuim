@@ -7,10 +7,15 @@ name = "chromium_rust_http_header_scanner"
 version = "0.1.0"
 
 [[package]]
+name = "chromium_rust_mojo_validator"
+version = "0.1.0"
+
+[[package]]
 name = "chromium_rust_perf_ffi_static"
 version = "0.1.0"
 dependencies = [
  "chromium_rust_http_header_scanner",
+ "chromium_rust_mojo_validator",
  "chromium_rust_url_canonicalizer",
 ]
 

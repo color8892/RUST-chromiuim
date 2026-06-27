@@ -45,6 +45,9 @@ class UrlScanner final {
     return Scan(reinterpret_cast<const uint8_t*>(url.data()), url.length());
   }
 
+  [[nodiscard]] ptrdiff_t CanonicalizeHost(const uint8_t* host_data, size_t host_len, uint8_t* out_data, size_t out_max_len) const noexcept;
+  [[nodiscard]] ptrdiff_t PercentDecodeSafe(const uint8_t* in_data, size_t in_len, uint8_t* out_data, size_t out_max_len) const noexcept;
+
   static void SetRollbackEnabled(bool enabled) noexcept;
   static bool IsRollbackEnabled() noexcept;
 };

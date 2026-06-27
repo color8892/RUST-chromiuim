@@ -41,6 +41,18 @@ uint32_t chromium_rust_url_parse_v1(
     size_t len,
     ChromiumRustUrlParseResult* out);
 
+ptrdiff_t chromium_rust_url_canonicalize_host_v1(
+    const uint8_t* host_data,
+    size_t host_len,
+    uint8_t* out_data,
+    size_t out_max_len);
+
+ptrdiff_t chromium_rust_url_percent_decode_safe_v1(
+    const uint8_t* in_data,
+    size_t in_len,
+    uint8_t* out_data,
+    size_t out_max_len);
+
 #ifdef __cplusplus
 }
 #endif

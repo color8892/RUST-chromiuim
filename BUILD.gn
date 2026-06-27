@@ -1,0 +1,84 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/rust.gni")
+
+# Main C++ wrapper target that links the Rust static library.
+# This target is what C++ components in Chromium would depend on.
+source_set("rust_perf_adapters") {
+  sources = [
+    "cpp/http_header_scanner_adapter.cc",
+    "cpp/http_header_scanner_adapter.h",
+    "cpp/url_canonicalizer_adapter.cc",
+    "cpp/url_canonicalizer_adapter.h",
+    "cpp/mojo_validator_adapter.cc",
+    "cpp/mojo_validator_adapter.h",
+  ]
+  
+  public = [
+    "cpp/http_header_scanner_adapter.h",
+    "cpp/url_canonicalizer_adapter.h",
+    "cpp/mojo_validator_adapter.h",
+    "include/chromium_rust_perf/http_header_scanner_ffi.h",
+    "include/chromium_rust_perf/url_canonicalizer_ffi.h",
+    "include/chromium_rust_perf/mojo_validator_ffi.h",
+  ]
+
+  deps = [
+    ":chromium_rust_perf_bridge",
+  ]
+}
+
+# The single static library target that compiles all Rust code
+# and bundles it for FFI consumption by C++.
+rust_static_library("chromium_rust_perf_bridge") {
+  crate_root = "rust/ffi_static/src/lib.rs"
+  sources = [
+    "rust/ffi_static/src/lib.rs",
+  ]
+
+  # Allow it to depend on other rlibs in the tree.
+  deps = [
+    ":chromium_rust_http_header_scanner",
+    ":chromium_rust_url_canonicalizer",
+    ":chromium_rust_mojo_validator",
+  ]
+}
+
+# Sub-library for HTTP header scanning
+rust_library("chromium_rust_http_header_scanner") {
+  crate_root = "rust/hot_leaf/http_header_scanner/src/lib.rs"
+  sources = [
+    "rust/hot_leaf/http_header_scanner/src/lib.rs",
+  ]
+}
+
+# Sub-library for URL canonicalization
+rust_library("chromium_rust_url_canonicalizer") {
+  crate_root = "rust/hot_leaf/url_canonicalizer/src/lib.rs"
+  sources = [
+    "rust/hot_leaf/url_canonicalizer/src/lib.rs",
+  ]
+}
+
+# Sub-library for Mojo IPC validation
+rust_library("chromium_rust_mojo_validator") {
+  crate_root = "rust/hot_leaf/mojo_validator/src/lib.rs"
+  sources = [
+    "rust/hot_leaf/mojo_validator/src/lib.rs",
+  ]
+}
+
+# Unit tests target for Chromium's test suite
+source_set("rust_perf_unittests") {
+  testonly = true
+  sources = [
+    "cpp_test/main.cc",
+    "cpp/url_canonicalizer_baseline.h",
+    "cpp/mojo_validator_baseline.h",
+  ]
+  deps = [
+    ":rust_perf_adapters",
+  ]
+}

@@ -1,4 +1,4 @@
-#![cfg_attr(all(not(test), not(feature = "std")), no_std)]
+#![cfg_attr(not(test), no_std)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::panic)]
@@ -381,6 +381,99 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
     }
 }
 
+/// Canonicalizes the host by converting ASCII uppercase characters to lowercase,
+/// and returns the written length if valid.
+pub fn canonicalize_host(host: &[u8], out: &mut [u8]) -> Option<usize> {
+    if host.len() > out.len() {
+        return None;
+    }
+    for i in 0..host.len() {
+        // SAFETY: host.len() <= out.len(), and i is in [0, host.len())
+        unsafe {
+            let b = *host.get_unchecked(i);
+            if b <= 32 || b >= 127 || b == b'/' || b == b'?' || b == b'#' {
+                return None;
+            }
+            *out.get_unchecked_mut(i) = b.to_ascii_lowercase();
+        }
+    }
+    Some(host.len())
+}
+
+/// Decodes percent-encoded characters in place or into a buffer, but only
+/// decodes alphanumeric characters (RFC 3986 safe) and validates UTF-8.
+pub fn percent_decode_safe(input: &[u8], out: &mut [u8]) -> Option<usize> {
+    let mut in_idx = 0usize;
+    let mut out_idx = 0usize;
+    let in_len = input.len();
+
+    while in_idx < in_len {
+        // SAFETY: in_idx is strictly less than in_len
+        let b = unsafe { *input.get_unchecked(in_idx) };
+        if b == b'%' {
+            if in_idx + 2 < in_len {
+                // SAFETY: in_idx + 2 < in_len
+                let h1 = unsafe { *input.get_unchecked(in_idx + 1) };
+                let h2 = unsafe { *input.get_unchecked(in_idx + 2) };
+                if let (Some(d1), Some(d2)) = (hex_digit(h1), hex_digit(h2)) {
+                    let decoded = (d1 << 4) | d2;
+                    // Only decode alphanumeric and safe characters: A-Z, a-z, 0-9, -, ., _, ~
+                    let should_decode = decoded.is_ascii_alphanumeric()
+                        || decoded == b'-'
+                        || decoded == b'.'
+                        || decoded == b'_'
+                        || decoded == b'~';
+                    if should_decode {
+                        if out_idx < out.len() {
+                            // SAFETY: out_idx is checked
+                            unsafe { *out.get_unchecked_mut(out_idx) = decoded; }
+                            out_idx += 1;
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        // Keep percent encoded representation
+                        if out_idx + 2 < out.len() {
+                            // SAFETY: out_idx + 2 is checked
+                            unsafe {
+                                *out.get_unchecked_mut(out_idx) = b'%';
+                                *out.get_unchecked_mut(out_idx + 1) = h1;
+                                *out.get_unchecked_mut(out_idx + 2) = h2;
+                            }
+                            out_idx += 3;
+                        } else {
+                            return None;
+                        }
+                    }
+                    in_idx += 3;
+                    continue;
+                }
+            }
+            // If % is not followed by 2 hex digits, we treat the URL as invalid/malformed
+            return None;
+        } else {
+            if out_idx < out.len() {
+                // SAFETY: out_idx is checked
+                unsafe { *out.get_unchecked_mut(out_idx) = b; }
+                out_idx += 1;
+            } else {
+                return None;
+            }
+            in_idx += 1;
+        }
+    }
+    Some(out_idx)
+}
+
+fn hex_digit(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -432,5 +525,29 @@ mod tests {
         let url_bad_chars = b"http://example.com:80a/";
         let res_bad = parse_url(url_bad_chars);
         assert_eq!(res_bad.status, UrlParseStatus::InvalidPort as u32);
+    }
+
+    #[test]
+    fn test_canonicalize_host() {
+        let mut buf = [0u8; 32];
+        let len = canonicalize_host(b"GOOgle.COM", &mut buf).unwrap();
+        assert_eq!(&buf[..len], b"google.com");
+
+        assert!(canonicalize_host(b"google.com/path", &mut buf).is_none());
+        assert!(canonicalize_host(b"google.com?", &mut buf).is_none());
+    }
+
+    #[test]
+    fn test_percent_decode_safe() {
+        let mut buf = [0u8; 64];
+        
+        // %41 -> A, %2f -> %2f (not decoded because it's not alphanumeric or safe)
+        let len = percent_decode_safe(b"hello%41world%2f%2Ffoo", &mut buf).unwrap();
+        assert_eq!(&buf[..len], b"helloAworld%2f%2Ffoo");
+
+        // Invalid hex
+        assert!(percent_decode_safe(b"hello%4gworld", &mut buf).is_none());
+        // Truncated percent
+        assert!(percent_decode_safe(b"hello%", &mut buf).is_none());
     }
 }

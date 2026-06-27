@@ -1,3 +1,7 @@
+param(
+    [string]$Mode = "all"
+)
+
 # Ensure script execution fails on error
 $ErrorActionPreference = "Stop"
 
@@ -83,6 +87,8 @@ if ($compiler -eq "clang++") {
         "-I.",
         "cpp_bench/main.cc",
         "cpp/http_header_scanner_adapter.cc",
+        "cpp/url_canonicalizer_adapter.cc",
+        "cpp/mojo_validator_adapter.cc",
         $libPath,
         "-o", $outputExe
     )
@@ -103,6 +109,8 @@ if ($compiler -eq "clang++") {
         "/I.",
         "cpp_bench/main.cc",
         "cpp/http_header_scanner_adapter.cc",
+        "cpp/url_canonicalizer_adapter.cc",
+        "cpp/mojo_validator_adapter.cc",
         $libPath,
         "/Fe$outputExe"
     )
@@ -122,10 +130,33 @@ Write-Host "C++ benchmark compiled successfully: $outputExe"
 Write-Host ""
 
 Write-Host "================================================================"
-Write-Host "           Running C++ Microbenchmark                           "
+Write-Host "           Running C++ Microbenchmarks (Mode: $Mode)            "
 Write-Host "================================================================"
-$reportPath = "target/bench/http_header_scanner.json"
-New-Item -ItemType Directory -Force -Path (Split-Path $reportPath) | Out-Null
-& $outputExe --json $reportPath --samples 7
-python tools/rust_perf_gate.py --report $reportPath --budget-file budgets/http_header_scanner_perf.json
-Write-Host ""
+
+if ($Mode -eq "all" -or $Mode -eq "header") {
+    # 1. HTTP Header Scanner Bench
+    $headerReport = "target/bench/http_header_scanner.json"
+    New-Item -ItemType Directory -Force -Path (Split-Path $headerReport) | Out-Null
+    Write-Host "-> Running HTTP Header Scanner benchmarks..."
+    & $outputExe --mode header --json $headerReport --samples 7
+    python tools/rust_perf_gate.py --report $headerReport --budget-file budgets/http_header_scanner_perf.json
+    Write-Host ""
+}
+
+if ($Mode -eq "all" -or $Mode -eq "url") {
+    # 2. URL Canonicalizer Bench
+    $urlReport = "target/bench/url_canonicalizer.json"
+    Write-Host "-> Running URL Canonicalizer benchmarks..."
+    & $outputExe --mode url --json $urlReport --samples 7
+    python tools/rust_perf_gate.py --report $urlReport --budget-file budgets/url_canonicalizer_perf.json
+    Write-Host ""
+}
+
+if ($Mode -eq "all" -or $Mode -eq "mojo") {
+    # 3. Mojo IPC Validator Bench
+    $mojoReport = "target/bench/mojo_validator.json"
+    Write-Host "-> Running Mojo IPC Validator benchmarks..."
+    & $outputExe --mode mojo --json $mojoReport --samples 7
+    python tools/rust_perf_gate.py --report $mojoReport --budget-file budgets/mojo_validator_perf.json
+    Write-Host ""
+}

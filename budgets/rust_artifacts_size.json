@@ -14,9 +14,15 @@
     },
     {
       "path": "target/release/libchromium_rust_url_canonicalizer.rlib",
-      "baseline_bytes": 26696,
+      "baseline_bytes": 31582,
       "max_growth_bytes": 2048,
-      "max_bytes": 28744
+      "max_bytes": 33630
+    },
+    {
+      "path": "target/release/libchromium_rust_mojo_validator.rlib",
+      "baseline_bytes": 27704,
+      "max_growth_bytes": 2048,
+      "max_bytes": 29752
     }
   ]
 }

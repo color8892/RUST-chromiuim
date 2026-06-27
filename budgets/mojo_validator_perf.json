@@ -1,0 +1,12 @@
+{
+  "benchmarks": [
+    {
+      "name": "Valid Mojo",
+      "min_speedup": 0.01
+    },
+    {
+      "name": "Malformed Mojo",
+      "min_speedup": 0.01
+    }
+  ]
+}

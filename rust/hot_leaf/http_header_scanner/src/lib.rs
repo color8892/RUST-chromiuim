@@ -146,12 +146,11 @@ fn scan_header_block(input: &[u8], policy: ScanPolicy) -> ChromiumRustHttpHeader
     let mut cursor = 0usize;
     let mut line_count = 0u32;
     let mut observed_max_line_length = 0u32;
+    let len = input.len();
 
-    while cursor < input.len() {
-        let byte = match input.get(cursor) {
-            Some(value) => *value,
-            None => return ChromiumRustHttpHeaderScanResult::new(ScanStatus::Incomplete),
-        };
+    while cursor < len {
+        // SAFETY: `cursor < len` is guaranteed by the loop condition.
+        let byte = unsafe { *input.get_unchecked(cursor) };
 
         if byte == 0 {
             return ChromiumRustHttpHeaderScanResult::new(ScanStatus::InvalidByte);
@@ -166,10 +165,11 @@ fn scan_header_block(input: &[u8], policy: ScanPolicy) -> ChromiumRustHttpHeader
             continue;
         }
 
-        let next = match input.get(cursor + 1) {
-            Some(value) => *value,
-            None => return ChromiumRustHttpHeaderScanResult::new(ScanStatus::Incomplete),
-        };
+        if cursor + 1 >= len {
+            return ChromiumRustHttpHeaderScanResult::new(ScanStatus::Incomplete);
+        }
+        // SAFETY: `cursor + 1 < len` is guaranteed by the check above.
+        let next = unsafe { *input.get_unchecked(cursor + 1) };
         if next != b'\n' {
             return ChromiumRustHttpHeaderScanResult::new(ScanStatus::MalformedLineEnding);
         }

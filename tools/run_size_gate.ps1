@@ -20,7 +20,8 @@ Write-Host "================================================================"
 python tools/rust_hot_leaf_guard.py rust/hot_leaf rust/ffi_static `
     --artifact $staticLib `
     --artifact target/release/libchromium_rust_http_header_scanner.rlib `
-    --artifact target/release/libchromium_rust_url_canonicalizer.rlib
+    --artifact target/release/libchromium_rust_url_canonicalizer.rlib `
+    --artifact target/release/libchromium_rust_mojo_validator.rlib
 
 Write-Host "================================================================"
 Write-Host "           Running Binary Size Gate                             "
@@ -29,6 +30,7 @@ python tools/rust_size_gate.py `
     --artifact $staticLib `
     --artifact target/release/libchromium_rust_http_header_scanner.rlib `
     --artifact target/release/libchromium_rust_url_canonicalizer.rlib `
+    --artifact target/release/libchromium_rust_mojo_validator.rlib `
     --budget-file budgets/rust_artifacts_size.json `
     --max-registry-packages 0 `
     --json-output target/size-gate/report.json

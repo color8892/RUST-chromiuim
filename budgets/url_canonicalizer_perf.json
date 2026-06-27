@@ -1,0 +1,16 @@
+{
+  "benchmarks": [
+    {
+      "name": "Small URL",
+      "min_speedup": 0.45
+    },
+    {
+      "name": "Large URL",
+      "min_speedup": 0.55
+    },
+    {
+      "name": "Malformed URL",
+      "min_speedup": 0.60
+    }
+  ]
+}

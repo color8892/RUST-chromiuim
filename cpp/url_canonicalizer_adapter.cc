@@ -58,4 +58,18 @@ UrlScanResult UrlScanner::Scan(const uint8_t* data, size_t len) const noexcept {
   return result;
 }
 
+ptrdiff_t UrlScanner::CanonicalizeHost(const uint8_t* host_data, size_t host_len, uint8_t* out_data, size_t out_max_len) const noexcept {
+  if (g_url_rollback_enabled.load(std::memory_order_relaxed)) {
+    return CppBaselineUrlScanner::CanonicalizeHost(host_data, host_len, out_data, out_max_len);
+  }
+  return chromium_rust_url_canonicalize_host_v1(host_data, host_len, out_data, out_max_len);
+}
+
+ptrdiff_t UrlScanner::PercentDecodeSafe(const uint8_t* in_data, size_t in_len, uint8_t* out_data, size_t out_max_len) const noexcept {
+  if (g_url_rollback_enabled.load(std::memory_order_relaxed)) {
+    return CppBaselineUrlScanner::PercentDecodeSafe(in_data, in_len, out_data, out_max_len);
+  }
+  return chromium_rust_url_percent_decode_safe_v1(in_data, in_len, out_data, out_max_len);
+}
+
 }  // namespace chromium_rust_perf

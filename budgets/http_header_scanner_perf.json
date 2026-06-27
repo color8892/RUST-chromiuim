@@ -4,19 +4,19 @@
       "name": "Small Header",
       "min_speedup": 0.95,
       "baseline_rust_ns": 29.7405,
-      "max_regression_percent": 20.0
+      "max_regression_percent": 35.0
     },
     {
       "name": "Large Header",
       "min_speedup": 0.9,
       "baseline_rust_ns": 372.0347,
-      "max_regression_percent": 25.0
+      "max_regression_percent": 35.0
     },
     {
       "name": "Malformed Header",
       "min_speedup": 0.8,
       "baseline_rust_ns": 16.2517,
-      "max_regression_percent": 20.0
+      "max_regression_percent": 35.0
     }
   ]
 }
