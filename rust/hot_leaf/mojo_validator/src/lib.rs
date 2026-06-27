@@ -54,6 +54,7 @@ pub struct MojoValidateResult {
 }
 
 impl MojoValidateResult {
+    #[inline(always)]
     pub fn new(status: MojoValidateStatus, error_offset: u32) -> Self {
         Self {
             status: status as u32,
@@ -71,19 +72,11 @@ pub unsafe fn validate_mojo_message(
         return MojoValidateResult::new(MojoValidateStatus::NullInput, 0);
     }
 
-    let input = unsafe { core::slice::from_raw_parts(data, len) };
-
     if len < 24 {
         return MojoValidateResult::new(MojoValidateStatus::MessageTooShort, len as u32);
     }
 
-    let mut header_bytes = [0u8; 4];
-    if let Some(bytes) = input.get(0..4) {
-        header_bytes.copy_from_slice(bytes);
-    } else {
-        return MojoValidateResult::new(MojoValidateStatus::MessageTooShort, 0);
-    }
-    let header_num_bytes = u32::from_le_bytes(header_bytes);
+    let header_num_bytes = unsafe { read_u32_le(data) };
 
     if header_num_bytes != 24 && header_num_bytes != 32 {
         return MojoValidateResult::new(MojoValidateStatus::InvalidHeaderSize, 0);
@@ -95,31 +88,26 @@ pub unsafe fn validate_mojo_message(
         return MojoValidateResult::new(MojoValidateStatus::MessageTooShort, header_num_bytes);
     }
 
-    let mut name_bytes = [0u8; 4];
-    if let Some(bytes) = input.get(12..16) {
-        name_bytes.copy_from_slice(bytes);
-    } else {
-        return MojoValidateResult::new(MojoValidateStatus::InvalidHeaderSize, 12);
-    }
-    let method_name = u32::from_le_bytes(name_bytes);
+    let method_name = unsafe { read_u32_le(data.add(12)) };
 
     let schema_table = unsafe { &*schema };
     if schema_table.methods.is_null() && schema_table.method_count > 0 {
         return MojoValidateResult::new(MojoValidateStatus::NullInput, 0);
     }
-    let methods = unsafe { core::slice::from_raw_parts(schema_table.methods, schema_table.method_count as usize) };
 
-    let mut found_method = None;
-    for m in methods {
-        if m.method_id == method_name {
-            found_method = Some(m);
+    let mut found_method: *const MojoMethodConstraint = core::ptr::null();
+    let method_count = schema_table.method_count as usize;
+    for i in 0..method_count {
+        let method = unsafe { schema_table.methods.add(i) };
+        if unsafe { (*method).method_id } == method_name {
+            found_method = method;
             break;
         }
     }
-    let method = match found_method {
-        Some(m) => m,
-        None => return MojoValidateResult::new(MojoValidateStatus::UnknownMethod, 12),
-    };
+    if found_method.is_null() {
+        return MojoValidateResult::new(MojoValidateStatus::UnknownMethod, 12);
+    }
+    let method = unsafe { &*found_method };
 
     let payload_offset = header_num_bytes as usize;
     let payload_len = len - payload_offset;
@@ -131,19 +119,12 @@ pub unsafe fn validate_mojo_message(
     if method.field_constraints.is_null() && method.field_count > 0 {
         return MojoValidateResult::new(MojoValidateStatus::NullInput, 0);
     }
-    let fields = unsafe { core::slice::from_raw_parts(method.field_constraints, method.field_count as usize) };
 
-    for field in fields {
+    let field_count = method.field_count as usize;
+    for i in 0..field_count {
+        let field = unsafe { &*method.field_constraints.add(i) };
         let f_offset = payload_offset + field.offset as usize;
-        if field.is_nullable == 0 {
-            let f_end = f_offset + field.expected_size as usize;
-            if f_end > len {
-                return MojoValidateResult::new(
-                    MojoValidateStatus::FieldOutOfBounds,
-                    (payload_offset as u32) + field.offset,
-                );
-            }
-        } else if field.expected_size > 0 {
+        if field.is_nullable == 0 || field.expected_size > 0 {
             let f_end = f_offset + field.expected_size as usize;
             if f_end > len {
                 return MojoValidateResult::new(
@@ -155,6 +136,16 @@ pub unsafe fn validate_mojo_message(
     }
 
     MojoValidateResult::new(MojoValidateStatus::Ok, 0)
+}
+
+#[inline(always)]
+unsafe fn read_u32_le(data: *const u8) -> u32 {
+    unsafe {
+        (*data as u32)
+            | ((*data.add(1) as u32) << 8)
+            | ((*data.add(2) as u32) << 16)
+            | ((*data.add(3) as u32) << 24)
+    }
 }
 
 #[cfg(any(test, feature = "prototype"))]

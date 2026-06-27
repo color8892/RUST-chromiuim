@@ -21,7 +21,7 @@ MojoValidateResult MojoMessageValidator::Validate(
     return CppBaselineMojoValidator::Validate(data, len, schema);
   }
 
-  MojoValidateResult result = {};
+  MojoValidateResult result;
   chromium_rust_mojo_validate_v1(data, len, schema, &result);
   return result;
 }

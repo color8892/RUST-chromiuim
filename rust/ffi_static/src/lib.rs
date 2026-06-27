@@ -136,8 +136,17 @@ pub unsafe extern "C" fn chromium_rust_mojo_validate_v1(
     schema: *const chromium_rust_mojo_validator::MojoSchemaTable,
     out: *mut chromium_rust_mojo_validator::MojoValidateResult,
 ) -> u32 {
-    if data.is_null() || schema.is_null() || out.is_null() {
+    if out.is_null() {
         return 1; // MojoValidateStatus::NullInput
+    }
+    if len < 24 {
+        let status = if data.is_null() || schema.is_null() { 1 } else { 2 };
+        let res = chromium_rust_mojo_validator::MojoValidateResult {
+            status,
+            error_offset: if status == 2 { len as u32 } else { 0 },
+        };
+        unsafe { out.write(res) };
+        return status;
     }
     // SAFETY: caller guarantees pointer validity contracts.
     let res = unsafe { chromium_rust_mojo_validator::validate_mojo_message(data, len, schema) };
