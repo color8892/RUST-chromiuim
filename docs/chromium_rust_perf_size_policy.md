@@ -14,6 +14,7 @@
 - Public Rust API 禁止 unconstrained generics。會造成超過兩個 instantiation 的策略型泛型必須改為 `enum` 或是經過效能與體積評估的 table-driven dispatch，儘量避免使用帶有間接跳轉（Indirect Branch）開銷與 vtable 的 `dyn Trait`。
 - 每個 migration 必須有 differential tests、fuzz target plan、microbenchmark、binary size diff、rollback flag。
 - 每個 migration 必須跑 `tools/rust_size_gate.py` 或等價 CI step，輸出 artifact bytes、registry dependency count 與 JSON report。
+- 每個 microbenchmark 必須輸出 machine-readable JSON，並由 `tools/rust_perf_gate.py` 或等價 CI step 檢查 speedup、latency cap 或 regression budget。
 
 ## Hot Path ABI
 

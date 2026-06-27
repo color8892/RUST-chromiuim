@@ -3,6 +3,8 @@
 #include <string_view>
 #include <iomanip>
 #include <cstring>
+#include <fstream>
+#include <vector>
 #include "cpp/http_header_scanner_adapter.h"
 
 // Global checksum to prevent compiler from optimizing away benchmark loops
@@ -25,7 +27,14 @@ const char* LARGE_PAYLOAD = "Host: example.test\r\n"
 
 const char* MALFORMED_PAYLOAD = "Host: example.test\nConnection: close\r\n\r\n";
 
-void RunBenchmark(const char* name, const uint8_t* data, size_t len, size_t iterations) {
+struct BenchmarkResult {
+    const char* name;
+    double rust_ns;
+    double cpp_ns;
+    double speedup;
+};
+
+BenchmarkResult RunBenchmark(const char* name, const uint8_t* data, size_t len, size_t iterations) {
     using namespace chromium_rust_perf;
     
     HttpHeaderScanOptions options{100, 1000};
@@ -65,9 +74,68 @@ void RunBenchmark(const char* name, const uint8_t* data, size_t len, size_t iter
               << " | " << std::right << std::setw(12) << std::fixed << std::setprecision(2) << avg_rust << " ns"
               << " | " << std::right << std::setw(12) << std::fixed << std::setprecision(2) << avg_cpp << " ns"
               << " | " << std::right << std::setw(10) << std::fixed << std::setprecision(2) << ratio << "x |" << std::endl;
+
+    return BenchmarkResult{name, avg_rust, avg_cpp, ratio};
 }
 
-int main() {
+void WriteJsonString(std::ofstream& out, const char* value) {
+    out << '"';
+    for (const char* cursor = value; *cursor != '\0'; ++cursor) {
+        switch (*cursor) {
+            case '\\':
+                out << "\\\\";
+                break;
+            case '"':
+                out << "\\\"";
+                break;
+            default:
+                out << *cursor;
+                break;
+        }
+    }
+    out << '"';
+}
+
+bool WriteJsonReport(const char* path,
+                     const std::vector<BenchmarkResult>& results,
+                     size_t iterations) {
+    std::ofstream out(path, std::ios::out | std::ios::trunc);
+    if (!out) {
+        return false;
+    }
+
+    out << "{\n";
+    out << "  \"iterations\": " << iterations << ",\n";
+    out << "  \"benchmarks\": [\n";
+    out << std::fixed << std::setprecision(4);
+    for (size_t i = 0; i < results.size(); ++i) {
+        const BenchmarkResult& result = results[i];
+        out << "    {\"name\": ";
+        WriteJsonString(out, result.name);
+        out << ", \"rust_ns\": " << result.rust_ns
+            << ", \"cpp_ns\": " << result.cpp_ns
+            << ", \"speedup\": " << result.speedup << "}";
+        if (i + 1 < results.size()) {
+            out << ",";
+        }
+        out << "\n";
+    }
+    out << "  ]\n";
+    out << "}\n";
+    return true;
+}
+
+int main(int argc, char** argv) {
+    const char* json_output = nullptr;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--json") == 0 && i + 1 < argc) {
+            json_output = argv[++i];
+        } else {
+            std::cerr << "Usage: " << argv[0] << " [--json output.json]" << std::endl;
+            return 2;
+        }
+    }
+
     std::cout << "================================================================" << std::endl;
     std::cout << "               Chromium Rust FFI Microbenchmark                 " << std::endl;
     std::cout << "================================================================" << std::endl;
@@ -78,12 +146,22 @@ int main() {
     std::cout << "|----------------------|-----------------|-----------------|--------------|" << std::endl;
 
     size_t iterations = 1000000;
-    
-    RunBenchmark("Small Header", reinterpret_cast<const uint8_t*>(SMALL_PAYLOAD), std::strlen(SMALL_PAYLOAD), iterations);
-    RunBenchmark("Large Header", reinterpret_cast<const uint8_t*>(LARGE_PAYLOAD), std::strlen(LARGE_PAYLOAD), iterations);
-    RunBenchmark("Malformed Header", reinterpret_cast<const uint8_t*>(MALFORMED_PAYLOAD), std::strlen(MALFORMED_PAYLOAD), iterations);
+    std::vector<BenchmarkResult> results;
+    results.reserve(3);
+
+    results.push_back(RunBenchmark("Small Header", reinterpret_cast<const uint8_t*>(SMALL_PAYLOAD), std::strlen(SMALL_PAYLOAD), iterations));
+    results.push_back(RunBenchmark("Large Header", reinterpret_cast<const uint8_t*>(LARGE_PAYLOAD), std::strlen(LARGE_PAYLOAD), iterations));
+    results.push_back(RunBenchmark("Malformed Header", reinterpret_cast<const uint8_t*>(MALFORMED_PAYLOAD), std::strlen(MALFORMED_PAYLOAD), iterations));
 
     std::cout << "================================================================" << std::endl;
+    if (json_output != nullptr) {
+        if (!WriteJsonReport(json_output, results, iterations)) {
+            std::cerr << "Failed to write JSON benchmark report: " << json_output << std::endl;
+            return 1;
+        }
+        std::cout << "JSON report written to: " << json_output << std::endl;
+    }
+
     // Print checksum to prevent compiler dead code elimination
     // (cast to void to suppress compiler warnings if any)
     (void)g_checksum;

@@ -39,4 +39,6 @@ powershell -ExecutionPolicy Bypass -File tools/run_cpp_bench.ps1
 powershell -ExecutionPolicy Bypass -File tools/run_local_fuzz.ps1
 ```
 
+`run_cpp_bench.ps1` writes `target/bench/http_header_scanner.json` and runs `tools/rust_perf_gate.py` so benchmark output is machine-checkable.
+
 Leaf crates intentionally stay as `rlib` so unit tests do not require rebuilding `core` with `panic=abort`. C++ linkage goes through `chromium_rust_perf_ffi_static`.
