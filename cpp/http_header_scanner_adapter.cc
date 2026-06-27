@@ -27,7 +27,7 @@ bool HttpHeaderScanOptions::IsValid() const noexcept {
 }
 
 HttpHeaderScanner::HttpHeaderScanner(HttpHeaderScanOptions options) noexcept
-    : options_(options) {}
+    : options_(options), options_valid_(options.IsValid()) {}
 
 void HttpHeaderScanner::SetRollbackEnabled(bool enabled) noexcept {
   g_rollback_enabled.store(enabled, std::memory_order_relaxed);
@@ -39,7 +39,7 @@ bool HttpHeaderScanner::IsRollbackEnabled() noexcept {
 
 HttpHeaderScanResult HttpHeaderScanner::Scan(const uint8_t* data,
                                              size_t len) const noexcept {
-  if (!options_.IsValid()) {
+  if (!options_valid_) {
     return HttpHeaderScanResult{HttpHeaderScanStatus::kInvalidPolicy, 0, 0, 0};
   }
 
@@ -56,11 +56,8 @@ HttpHeaderScanResult HttpHeaderScanner::Scan(const uint8_t* data,
   }
 
   ChromiumRustHttpHeaderScanResult ffi_result = {};
-  const uint32_t status = chromium_rust_http_scan_headers_v1(
+  chromium_rust_http_scan_headers_v1(
       data, len, options_.max_lines, options_.max_line_length, &ffi_result);
-  if (status != ffi_result.status) {
-    return HttpHeaderScanResult{HttpHeaderScanStatus::kInvalidPolicy, 0, 0, 0};
-  }
   return FromFfi(ffi_result);
 }
 

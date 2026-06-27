@@ -54,6 +54,7 @@ class HttpHeaderScanner final {
 
  private:
   HttpHeaderScanOptions options_;
+  bool options_valid_;
 };
 
 }  // namespace chromium_rust_perf

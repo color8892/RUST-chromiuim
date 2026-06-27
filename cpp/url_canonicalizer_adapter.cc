@@ -10,17 +10,13 @@ namespace {
 std::atomic_bool g_url_rollback_enabled{false};
 
 std::string_view MapComponent(const uint8_t* base_data,
-                              size_t data_len,
                               ChromiumRustUrlComponent comp) noexcept {
   if (comp.begin < 0 || comp.len < 0) {
     return std::string_view();
   }
-  const size_t begin = static_cast<size_t>(comp.begin);
-  const size_t len = static_cast<size_t>(comp.len);
-  if (base_data == nullptr || begin > data_len || len > data_len - begin) {
-    return std::string_view();
-  }
-  return std::string_view(reinterpret_cast<const char*>(base_data + begin), len);
+  return std::string_view(
+      reinterpret_cast<const char*>(base_data + static_cast<size_t>(comp.begin)),
+      static_cast<size_t>(comp.len));
 }
 }  // namespace
 
@@ -46,14 +42,14 @@ UrlScanResult UrlScanner::Scan(const uint8_t* data, size_t len) const noexcept {
     return result;
   }
 
-  result.scheme = MapComponent(data, len, ffi_res.scheme);
-  result.username = MapComponent(data, len, ffi_res.username);
-  result.password = MapComponent(data, len, ffi_res.password);
-  result.host = MapComponent(data, len, ffi_res.host);
+  result.scheme = MapComponent(data, ffi_res.scheme);
+  result.username = MapComponent(data, ffi_res.username);
+  result.password = MapComponent(data, ffi_res.password);
+  result.host = MapComponent(data, ffi_res.host);
   result.port = ffi_res.port;
-  result.path = MapComponent(data, len, ffi_res.path);
-  result.query = MapComponent(data, len, ffi_res.query);
-  result.fragment = MapComponent(data, len, ffi_res.fragment);
+  result.path = MapComponent(data, ffi_res.path);
+  result.query = MapComponent(data, ffi_res.query);
+  result.fragment = MapComponent(data, ffi_res.fragment);
 
   return result;
 }

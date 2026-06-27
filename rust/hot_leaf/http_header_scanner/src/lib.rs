@@ -120,6 +120,7 @@ pub unsafe extern "C" fn chromium_rust_http_scan_headers_v1_internal(
     result.status
 }
 
+#[inline(always)]
 fn scan_from_raw_parts(
     data: *const u8,
     len: usize,
@@ -141,16 +142,18 @@ fn scan_from_raw_parts(
     scan_header_block(input, policy)
 }
 
+#[inline(always)]
 fn scan_header_block(input: &[u8], policy: ScanPolicy) -> ChromiumRustHttpHeaderScanResult {
     let mut line_start = 0usize;
     let mut cursor = 0usize;
     let mut line_count = 0u32;
     let mut observed_max_line_length = 0u32;
     let len = input.len();
+    let base = input.as_ptr();
 
     while cursor < len {
         // SAFETY: `cursor < len` is guaranteed by the loop condition.
-        let byte = unsafe { *input.get_unchecked(cursor) };
+        let byte = unsafe { *base.add(cursor) };
 
         if byte == 0 {
             return ChromiumRustHttpHeaderScanResult::new(ScanStatus::InvalidByte);
@@ -169,12 +172,12 @@ fn scan_header_block(input: &[u8], policy: ScanPolicy) -> ChromiumRustHttpHeader
             return ChromiumRustHttpHeaderScanResult::new(ScanStatus::Incomplete);
         }
         // SAFETY: `cursor + 1 < len` is guaranteed by the check above.
-        let next = unsafe { *input.get_unchecked(cursor + 1) };
+        let next = unsafe { *base.add(cursor + 1) };
         if next != b'\n' {
             return ChromiumRustHttpHeaderScanResult::new(ScanStatus::MalformedLineEnding);
         }
 
-        let line_len = cursor.saturating_sub(line_start);
+        let line_len = cursor - line_start;
         if line_len > policy.max_line_length as usize {
             return ChromiumRustHttpHeaderScanResult::new(ScanStatus::LineTooLong);
         }

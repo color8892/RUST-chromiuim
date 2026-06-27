@@ -1,3 +1,12 @@
+#![cfg_attr(
+    all(
+        not(test),
+        not(feature = "prototype"),
+        not(feature = "async-prototype"),
+        not(feature = "cxx-bridge")
+    ),
+    no_std
+)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::panic)]
@@ -6,11 +15,28 @@
 #![deny(clippy::todo)]
 #![deny(clippy::unwrap_used)]
 
+#[cfg(feature = "async-prototype")]
 pub mod task_runner_bridge;
+#[cfg(feature = "cxx-bridge")]
 pub mod cxx_bridge;
 
 pub use chromium_rust_http_header_scanner::ChromiumRustHttpHeaderScanResult;
 pub use chromium_rust_url_canonicalizer::ChromiumRustUrlParseResult;
+
+#[cfg(all(
+    not(test),
+    not(feature = "prototype"),
+    not(feature = "async-prototype"),
+    not(feature = "cxx-bridge")
+))]
+#[panic_handler]
+fn panic_handler(_: &core::panic::PanicInfo<'_>) -> ! {
+    unsafe extern "C" {
+        fn abort() -> !;
+    }
+
+    unsafe { abort() }
+}
 
 /// # Safety
 ///
@@ -119,6 +145,7 @@ pub unsafe extern "C" fn chromium_rust_mojo_validate_v1(
     res.status
 }
 
+#[cfg(feature = "async-prototype")]
 #[no_mangle]
 pub unsafe extern "C" fn chromium_rust_mojo_writer_test(
     buf: *mut u8,
@@ -141,6 +168,7 @@ pub unsafe extern "C" fn chromium_rust_mojo_writer_test(
     builder.next_offset() as isize
 }
 
+#[cfg(feature = "async-prototype")]
 #[no_mangle]
 pub unsafe extern "C" fn chromium_rust_mojo_reader_test(
     data: *const u8,
@@ -159,6 +187,7 @@ pub unsafe extern "C" fn chromium_rust_mojo_reader_test(
     -1
 }
 
+#[cfg(feature = "async-prototype")]
 #[no_mangle]
 pub unsafe extern "C" fn chromium_rust_mojo_writer_string_test(
     buf: *mut u8,
@@ -187,6 +216,7 @@ pub unsafe extern "C" fn chromium_rust_mojo_writer_string_test(
     builder.next_offset() as isize
 }
 
+#[cfg(feature = "async-prototype")]
 #[no_mangle]
 pub unsafe extern "C" fn chromium_rust_mojo_reader_string_test(
     data: *const u8,
@@ -214,6 +244,7 @@ pub unsafe extern "C" fn chromium_rust_mojo_reader_string_test(
     -1
 }
 
+#[cfg(feature = "async-prototype")]
 #[no_mangle]
 pub unsafe extern "C" fn chromium_rust_mojo_writer_array_u32_test(
     buf: *mut u8,
@@ -238,6 +269,7 @@ pub unsafe extern "C" fn chromium_rust_mojo_writer_array_u32_test(
     builder.next_offset() as isize
 }
 
+#[cfg(feature = "async-prototype")]
 #[no_mangle]
 pub unsafe extern "C" fn chromium_rust_mojo_reader_array_u32_test(
     data: *const u8,
@@ -258,6 +290,3 @@ pub unsafe extern "C" fn chromium_rust_mojo_reader_array_u32_test(
     }
     -1
 }
-
-
-

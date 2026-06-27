@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -176,6 +177,93 @@ class CargoLockGate:
         return count, []
 
 
+class CargoMetadataGate:
+    def count_registry_packages(
+        self,
+        package: str,
+        no_default_features: bool,
+        features: Sequence[str],
+    ) -> int:
+        command = ["cargo", "metadata", "--format-version=1"]
+        if no_default_features:
+            command.append("--no-default-features")
+        if features:
+            command.extend(["--features", ",".join(features)])
+
+        try:
+            completed = subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise ValueError(f"could not run cargo metadata: {exc}") from exc
+
+        payload = json.loads(completed.stdout)
+        packages_by_id = {item["id"]: item for item in payload.get("packages", [])}
+        resolve = payload.get("resolve")
+        if not isinstance(resolve, dict):
+            raise ValueError("cargo metadata did not include a resolve graph")
+
+        root_id = self._find_package_id(packages_by_id, package)
+        nodes = resolve.get("nodes", [])
+        deps_by_id = {
+            node["id"]: [dep["pkg"] for dep in node.get("deps", [])]
+            for node in nodes
+            if isinstance(node, dict)
+        }
+
+        seen: set[str] = set()
+        stack = list(deps_by_id.get(root_id, []))
+        while stack:
+            package_id = stack.pop()
+            if package_id in seen:
+                continue
+            seen.add(package_id)
+            stack.extend(deps_by_id.get(package_id, []))
+
+        count = 0
+        for package_id in seen:
+            package_info = packages_by_id.get(package_id, {})
+            source = package_info.get("source")
+            if isinstance(source, str) and source.startswith("registry+"):
+                count += 1
+        return count
+
+    @staticmethod
+    def _find_package_id(packages_by_id: dict[str, dict[str, Any]], package: str) -> str:
+        matches = [
+            package_id
+            for package_id, package_info in packages_by_id.items()
+            if package_info.get("name") == package
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"expected one package named {package}, found {len(matches)}")
+        return matches[0]
+
+    def check(
+        self,
+        package: str,
+        no_default_features: bool,
+        features: Sequence[str],
+        max_registry_packages: int | None,
+    ) -> tuple[int | None, list[SizeViolation]]:
+        if max_registry_packages is None:
+            return None, []
+        if max_registry_packages < 0:
+            return None, [SizeViolation("invalid dependency budget", "max registry packages must be >= 0")]
+        count = self.count_registry_packages(package, no_default_features, features)
+        if count > max_registry_packages:
+            return count, [
+                SizeViolation(
+                    "registry dependency budget exceeded",
+                    f"{count} registry packages > {max_registry_packages}",
+                )
+            ]
+        return count, []
+
+
 def _optional_int(item: dict[str, Any], key: str, index: int) -> int | None:
     value = item.get(key)
     if value is None:
@@ -191,6 +279,9 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument("--budget-file", type=Path)
     parser.add_argument("--max-total-bytes", type=int)
     parser.add_argument("--lockfile", type=Path, default=Path("Cargo.lock"))
+    parser.add_argument("--package")
+    parser.add_argument("--no-default-features", action="store_true")
+    parser.add_argument("--features", action="append", default=[])
     parser.add_argument("--max-registry-packages", type=int)
     parser.add_argument("--json-output", type=Path)
     return parser.parse_args(argv)
@@ -224,9 +315,17 @@ def main(argv: Sequence[str]) -> int:
     measurements, violations = size_gate.measure(artifact_paths)
     violations.extend(size_gate.check_budgets(measurements, budgets, args.max_total_bytes))
 
-    registry_package_count, dependency_violations = CargoLockGate().check(
-        args.lockfile, args.max_registry_packages
-    )
+    if args.package:
+        registry_package_count, dependency_violations = CargoMetadataGate().check(
+            args.package,
+            args.no_default_features,
+            args.features,
+            args.max_registry_packages,
+        )
+    else:
+        registry_package_count, dependency_violations = CargoLockGate().check(
+            args.lockfile, args.max_registry_packages
+        )
     violations.extend(dependency_violations)
 
     if args.json_output:

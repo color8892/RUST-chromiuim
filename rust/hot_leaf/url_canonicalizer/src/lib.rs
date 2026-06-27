@@ -123,9 +123,11 @@ pub unsafe extern "C" fn chromium_rust_url_parse_v1(
     unsafe { chromium_rust_url_parse_v1_internal(data, len, out) }
 }
 
+#[inline(always)]
 fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
     let mut cursor = 0usize;
     let len = input.len();
+    let base = input.as_ptr();
 
     let mut scheme = ChromiumRustUrlComponent::missing();
     let mut username = ChromiumRustUrlComponent::missing();
@@ -140,14 +142,14 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
     // 1. Parse Scheme: look for ':' before '/', '?', '#'
     let mut colon_idx = None;
     for i in 0..len {
-        if let Some(&b) = input.get(i) {
-            if b == b':' {
-                colon_idx = Some(i);
-                break;
-            }
-            if b == b'/' || b == b'?' || b == b'#' {
-                break;
-            }
+        // SAFETY: i is in 0..len.
+        let b = unsafe { *base.add(i) };
+        if b == b':' {
+            colon_idx = Some(i);
+            break;
+        }
+        if b == b'/' || b == b'?' || b == b'#' {
+            break;
         }
     }
 
@@ -155,22 +157,18 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
         // Validate scheme characters: RFC 3986: scheme = alpha *( alpha / digit / "+" / "-" / "." )
         let mut valid = idx > 0;
         if valid {
-            if let Some(&first) = input.first() {
-                if !first.is_ascii_alphabetic() {
-                    valid = false;
-                }
-            } else {
+            // SAFETY: idx > 0 guarantees len > 0.
+            let first = unsafe { *base };
+            if !first.is_ascii_alphabetic() {
                 valid = false;
             }
-            if let Some(sub) = input.get(1..idx) {
-                for &b in sub {
-                    if !b.is_ascii_alphanumeric() && b != b'+' && b != b'-' && b != b'.' {
-                        valid = false;
-                        break;
-                    }
+            for i in 1..idx {
+                // SAFETY: i < idx <= len.
+                let b = unsafe { *base.add(i) };
+                if !b.is_ascii_alphanumeric() && b != b'+' && b != b'-' && b != b'.' {
+                    valid = false;
+                    break;
                 }
-            } else {
-                valid = false;
             }
         }
         if !valid {
@@ -181,8 +179,8 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
 
         // Check for double slash scheme separator (e.g. `://`)
         if cursor + 1 < len
-            && input.get(cursor) == Some(&b'/')
-            && input.get(cursor + 1) == Some(&b'/')
+            && unsafe { *base.add(cursor) } == b'/'
+            && unsafe { *base.add(cursor + 1) } == b'/'
         {
             cursor += 2;
             true // has authority
@@ -191,7 +189,7 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
         }
     } else {
         // Schemeless: if starts with `//`, authority starts after `//`
-        if len >= 2 && input.first() == Some(&b'/') && input.get(1) == Some(&b'/') {
+        if len >= 2 && unsafe { *base } == b'/' && unsafe { *base.add(1) } == b'/' {
             cursor = 2;
             true
         } else {
@@ -204,15 +202,18 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
         // Find end of authority: first '/', '?', or '#'
         let mut auth_end = len;
         for i in cursor..len {
-            if let Some(&b) = input.get(i) {
-                if b == b'/' || b == b'?' || b == b'#' {
-                    auth_end = i;
-                    break;
-                }
+            // SAFETY: i is in cursor..len.
+            let b = unsafe { *base.add(i) };
+            if b == b'/' || b == b'?' || b == b'#' {
+                auth_end = i;
+                break;
             }
         }
 
-        if let Some(auth_span) = input.get(cursor..auth_end) {
+        if cursor <= auth_end {
+            // SAFETY: cursor and auth_end are bounded by len and cursor <= auth_end.
+            let auth_span =
+                unsafe { core::slice::from_raw_parts(base.add(cursor), auth_end - cursor) };
             let auth_len = auth_span.len();
 
             if auth_len > 0 {
@@ -248,7 +249,16 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
                         }
                     }
 
-                    (auth_span.get(idx + 1..).unwrap_or(&[]), cursor + idx + 1)
+                    (
+                        // SAFETY: idx is within auth_span and idx + 1 <= auth_span.len().
+                        unsafe {
+                            core::slice::from_raw_parts(
+                                auth_span.as_ptr().add(idx + 1),
+                                auth_span.len() - idx - 1,
+                            )
+                        },
+                        cursor + idx + 1,
+                    )
                 } else {
                     (auth_span, cursor)
                 };
@@ -258,19 +268,23 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
                 if hp_len > 0 {
                     // Look for port separator `:` (scanning backwards to support IPv6 host like `[::1]:80`)
                     let mut last_colon = None;
+                    let hp_base = host_port_span.as_ptr();
                     for j in (0..hp_len).rev() {
-                        if host_port_span.get(j) == Some(&b':') {
+                        // SAFETY: j is in 0..hp_len.
+                        if unsafe { *hp_base.add(j) } == b':' {
                             // Ensure we aren't matching colons inside IPv6 brackets
                             let mut inside_brackets = false;
                             let mut has_bracket_end = false;
                             for k in j..hp_len {
-                                if host_port_span.get(k) == Some(&b']') {
+                                // SAFETY: k is in j..hp_len.
+                                if unsafe { *hp_base.add(k) } == b']' {
                                     has_bracket_end = true;
                                     break;
                                 }
                             }
                             for k in 0..j {
-                                if host_port_span.get(k) == Some(&b'[') {
+                                // SAFETY: k is in 0..j.
+                                if unsafe { *hp_base.add(k) } == b'[' {
                                     if has_bracket_end {
                                         inside_brackets = true;
                                     }
@@ -286,7 +300,13 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
 
                     let host_span = if let Some(c_idx) = last_colon {
                         // Extract port component
-                        let port_span = host_port_span.get(c_idx + 1..).unwrap_or(&[]);
+                        // SAFETY: c_idx is within host_port_span.
+                        let port_span = unsafe {
+                            core::slice::from_raw_parts(
+                                hp_base.add(c_idx + 1),
+                                hp_len - c_idx - 1,
+                            )
+                        };
                         if !port_span.is_empty() {
                             // Parse port number manually
                             let mut val = 0u32;
@@ -314,7 +334,8 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
                                 port_span.len() as i32,
                             );
                         }
-                        host_port_span.get(..c_idx).unwrap_or(&[])
+                        // SAFETY: c_idx <= hp_len.
+                        unsafe { core::slice::from_raw_parts(hp_base, c_idx) }
                     } else {
                         host_port_span
                     };
@@ -337,24 +358,25 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
     }
 
     // 3. Parse Path, Query, Fragment
-    if cursor < len && input.get(cursor) != Some(&b'?') && input.get(cursor) != Some(&b'#') {
+    if cursor < len && unsafe { *base.add(cursor) } != b'?' && unsafe { *base.add(cursor) } != b'#' {
         let mut path_end = len;
         for i in cursor..len {
-            if let Some(&b) = input.get(i) {
-                if b == b'?' || b == b'#' {
-                    path_end = i;
-                    break;
-                }
+            // SAFETY: i is in cursor..len.
+            let b = unsafe { *base.add(i) };
+            if b == b'?' || b == b'#' {
+                path_end = i;
+                break;
             }
         }
         path = ChromiumRustUrlComponent::new(cursor as i32, (path_end - cursor) as i32);
         cursor = path_end;
     }
 
-    if cursor < len && input.get(cursor) == Some(&b'?') {
+    if cursor < len && unsafe { *base.add(cursor) } == b'?' {
         let mut query_end = len;
         for i in (cursor + 1)..len {
-            if input.get(i) == Some(&b'#') {
+            // SAFETY: i is in cursor + 1..len.
+            if unsafe { *base.add(i) } == b'#' {
                 query_end = i;
                 break;
             }
@@ -363,7 +385,7 @@ fn parse_url(input: &[u8]) -> ChromiumRustUrlParseResult {
         cursor = query_end;
     }
 
-    if cursor < len && input.get(cursor) == Some(&b'#') {
+    if cursor < len && unsafe { *base.add(cursor) } == b'#' {
         fragment = ChromiumRustUrlComponent::new((cursor + 1) as i32, (len - cursor - 1) as i32);
     }
 

@@ -1,9 +1,22 @@
 $ErrorActionPreference = "Stop"
 
+function Invoke-NativeChecked {
+    param(
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$Command
+    )
+
+    & $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "Native command failed with exit code $LASTEXITCODE"
+    }
+}
+
 Write-Host "================================================================"
 Write-Host "           Building Rust FFI Static Library (Release)           "
 Write-Host "================================================================"
-cargo build --release -p chromium_rust_perf_ffi_static
+Invoke-NativeChecked { cargo build --release -p chromium_rust_http_header_scanner -p chromium_rust_url_canonicalizer -p chromium_rust_mojo_validator --no-default-features }
+Invoke-NativeChecked { cargo build --release -p chromium_rust_perf_ffi_static }
 
 $staticLib = "target/release/chromium_rust_perf_ffi_static.lib"
 if (-not (Test-Path $staticLib)) {
@@ -17,22 +30,24 @@ if (-not (Test-Path $staticLib)) {
 Write-Host "================================================================"
 Write-Host "           Running Rust Source / Artifact Guard                 "
 Write-Host "================================================================"
-python tools/rust_hot_leaf_guard.py rust/hot_leaf rust/ffi_static `
+Invoke-NativeChecked { python tools/rust_hot_leaf_guard.py rust/hot_leaf rust/ffi_static/src/lib.rs `
     --artifact $staticLib `
     --artifact target/release/libchromium_rust_http_header_scanner.rlib `
     --artifact target/release/libchromium_rust_url_canonicalizer.rlib `
-    --artifact target/release/libchromium_rust_mojo_validator.rlib
+    --artifact target/release/libchromium_rust_mojo_validator.rlib }
 
 Write-Host "================================================================"
 Write-Host "           Running Binary Size Gate                             "
 Write-Host "================================================================"
-python tools/rust_size_gate.py `
+Invoke-NativeChecked { python tools/rust_size_gate.py `
     --artifact $staticLib `
     --artifact target/release/libchromium_rust_http_header_scanner.rlib `
     --artifact target/release/libchromium_rust_url_canonicalizer.rlib `
     --artifact target/release/libchromium_rust_mojo_validator.rlib `
     --budget-file budgets/rust_artifacts_size.json `
+    --package chromium_rust_perf_ffi_static `
+    --no-default-features `
     --max-registry-packages 0 `
-    --json-output target/size-gate/report.json
+    --json-output target/size-gate/report.json }
 
 Write-Host "Size gate report written to target/size-gate/report.json"

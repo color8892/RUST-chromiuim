@@ -157,11 +157,13 @@ pub unsafe fn validate_mojo_message(
     MojoValidateResult::new(MojoValidateStatus::Ok, 0)
 }
 
+#[cfg(any(test, feature = "prototype"))]
 pub struct MojoMessageReader<'a> {
     data: &'a [u8],
     payload_offset: usize,
 }
 
+#[cfg(any(test, feature = "prototype"))]
 impl<'a> MojoMessageReader<'a> {
     pub fn new(data: &'a [u8]) -> Option<Self> {
         if data.len() < 24 {
@@ -324,11 +326,13 @@ impl<'a> MojoMessageReader<'a> {
     }
 }
 
+#[cfg(any(test, feature = "prototype"))]
 pub struct MojoMessageBuilder<'a> {
     buf: &'a mut [u8],
     next_offset: usize,
 }
 
+#[cfg(any(test, feature = "prototype"))]
 impl<'a> MojoMessageBuilder<'a> {
     pub fn new(buf: &'a mut [u8], initial_payload_size: usize) -> Self {
         Self {

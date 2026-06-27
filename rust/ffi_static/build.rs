@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::path::{Path, PathBuf};
-use std::fs;
+#[cfg(feature = "cxx-bridge")]
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
+#[cfg(feature = "cxx-bridge")]
 fn find_file_recursive(dir: &Path, filename: &str) -> Option<PathBuf> {
     if dir.is_dir() {
         if let Ok(entries) = fs::read_dir(dir) {
@@ -24,6 +28,12 @@ fn find_file_recursive(dir: &Path, filename: &str) -> Option<PathBuf> {
 }
 
 fn main() {
+    #[cfg(feature = "cxx-bridge")]
+    build_cxx_bridge();
+}
+
+#[cfg(feature = "cxx-bridge")]
+fn build_cxx_bridge() {
     cxx_build::bridge("src/cxx_bridge.rs")
         .compile("cxx-bridge-mojo");
 

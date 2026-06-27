@@ -34,7 +34,7 @@ unsafe fn waker_clone(data: *const ()) -> RawWaker {
 
 unsafe fn waker_wake(data: *const ()) {
     unsafe {
-        let slot = &mut GLOBAL_TASK_SLOT;
+        let slot = &mut *core::ptr::addr_of_mut!(GLOBAL_TASK_SLOT);
         if let Some(post_fn) = slot.post_task_fn {
             if !slot.task_runner.is_null() {
                 post_fn(slot.task_runner, run_executor_callback, data as *mut _);
@@ -58,7 +58,7 @@ static WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
 
 extern "C" fn run_executor_callback(user_data: *mut core::ffi::c_void) {
     unsafe {
-        let slot = &mut GLOBAL_TASK_SLOT;
+        let slot = &mut *core::ptr::addr_of_mut!(GLOBAL_TASK_SLOT);
         if let Some(ref mut fut) = slot.future {
             let raw_waker = RawWaker::new(user_data as *const (), &WAKER_VTABLE);
             let waker = Waker::from_raw(raw_waker);
@@ -80,8 +80,9 @@ pub unsafe extern "C" fn chromium_rust_async_executor_init(
     post_fn: PostTaskFn,
 ) {
     unsafe {
-        GLOBAL_TASK_SLOT.task_runner = runner;
-        GLOBAL_TASK_SLOT.post_task_fn = Some(post_fn);
+        let slot = &mut *core::ptr::addr_of_mut!(GLOBAL_TASK_SLOT);
+        slot.task_runner = runner;
+        slot.post_task_fn = Some(post_fn);
     }
 }
 
@@ -117,10 +118,15 @@ pub unsafe extern "C" fn chromium_rust_async_executor_test_run(
 ) -> u32 {
     unsafe {
         let fut = YieldFuture::new(yield_count);
-        TEST_YIELD_FUTURE = Some(fut);
+        let test_future = core::ptr::addr_of_mut!(TEST_YIELD_FUTURE);
+        *test_future = Some(fut);
         
-        let slot = &mut GLOBAL_TASK_SLOT;
-        let pin_fut: Pin<&'static mut YieldFuture> = Pin::new_unchecked(TEST_YIELD_FUTURE.as_mut().unwrap_unchecked());
+        let slot = &mut *core::ptr::addr_of_mut!(GLOBAL_TASK_SLOT);
+        let future_ptr = match (*test_future).as_mut() {
+            Some(future) => future as *mut YieldFuture,
+            None => core::hint::unreachable_unchecked(),
+        };
+        let pin_fut: Pin<&'static mut YieldFuture> = Pin::new_unchecked(&mut *future_ptr);
         slot.future = Some(pin_fut);
         
         run_executor_callback(core::ptr::null_mut());

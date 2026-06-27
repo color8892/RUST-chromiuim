@@ -5,10 +5,22 @@ param(
 # Ensure script execution fails on error
 $ErrorActionPreference = "Stop"
 
+function Invoke-NativeChecked {
+    param(
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$Command
+    )
+
+    & $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "Native command failed with exit code $LASTEXITCODE"
+    }
+}
+
 Write-Host "================================================================"
 Write-Host "           Building Rust Static Library (Release)               "
 Write-Host "================================================================"
-cargo build --release -p chromium_rust_perf_ffi_static
+Invoke-NativeChecked { cargo build --release -p chromium_rust_perf_ffi_static }
 
 # Resolve static library path
 $libPath = "target/release/chromium_rust_perf_ffi_static.lib"
@@ -140,7 +152,7 @@ if ($Mode -eq "all" -or $Mode -eq "header") {
     New-Item -ItemType Directory -Force -Path (Split-Path $headerReport) | Out-Null
     Write-Host "-> Running HTTP Header Scanner benchmarks..."
     & $outputExe --mode header --json $headerReport --samples 7
-    python tools/rust_perf_gate.py --report $headerReport --budget-file budgets/http_header_scanner_perf.json
+    Invoke-NativeChecked { python tools/rust_perf_gate.py --report $headerReport --budget-file budgets/http_header_scanner_perf.json }
     Write-Host ""
 }
 
@@ -149,7 +161,7 @@ if ($Mode -eq "all" -or $Mode -eq "url") {
     $urlReport = "target/bench/url_canonicalizer.json"
     Write-Host "-> Running URL Canonicalizer benchmarks..."
     & $outputExe --mode url --json $urlReport --samples 7
-    python tools/rust_perf_gate.py --report $urlReport --budget-file budgets/url_canonicalizer_perf.json
+    Invoke-NativeChecked { python tools/rust_perf_gate.py --report $urlReport --budget-file budgets/url_canonicalizer_perf.json }
     Write-Host ""
 }
 
@@ -158,6 +170,6 @@ if ($Mode -eq "all" -or $Mode -eq "mojo") {
     $mojoReport = "target/bench/mojo_validator.json"
     Write-Host "-> Running Mojo IPC Validator benchmarks..."
     & $outputExe --mode mojo --json $mojoReport --samples 7
-    python tools/rust_perf_gate.py --report $mojoReport --budget-file budgets/mojo_validator_perf.json
+    Invoke-NativeChecked { python tools/rust_perf_gate.py --report $mojoReport --budget-file budgets/mojo_validator_perf.json }
     Write-Host ""
 }

@@ -78,7 +78,9 @@ class RustSourcePolicy:
         return (
             "#![no_std]" in text or
             "#![cfg_attr(not(test), no_std)]" in text or
-            '#![cfg_attr(all(not(test), not(feature = "std")), no_std)]' in text
+            '#![cfg_attr(all(not(test), not(feature = "std")), no_std)]' in text or
+            re.search(r"#!\s*\[\s*cfg_attr\s*\([^]]*,\s*no_std\s*\)\s*\]", text, re.S)
+            is not None
         )
 
     @staticmethod

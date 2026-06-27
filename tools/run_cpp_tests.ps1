@@ -1,10 +1,22 @@
 # Ensure script execution fails on error
 $ErrorActionPreference = "Stop"
 
+function Invoke-NativeChecked {
+    param(
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$Command
+    )
+
+    & $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "Native command failed with exit code $LASTEXITCODE"
+    }
+}
+
 Write-Host "================================================================"
 Write-Host "           Building Rust Static Library (Release)               "
 Write-Host "================================================================"
-cargo build --release -p chromium_rust_perf_ffi_static
+Invoke-NativeChecked { cargo build --release -p chromium_rust_perf_ffi_static --features prototype }
 
 # Resolve static library path.
 $libPath = "target/release/chromium_rust_perf_ffi_static.lib"

@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
-from tools.rust_size_gate import ArtifactSizeGate, BudgetFile, CargoLockGate
+from tools.rust_size_gate import ArtifactSizeGate, BudgetFile, CargoLockGate, CargoMetadataGate
 
 
 class RustSizeGateTest(unittest.TestCase):
@@ -96,6 +97,49 @@ class RustSizeGateTest(unittest.TestCase):
 
             self.assertEqual(1, count)
             self.assertEqual("registry dependency budget exceeded", violations[0].rule)
+
+    def test_counts_only_reachable_metadata_registry_dependencies(self) -> None:
+        metadata = {
+            "packages": [
+                {"id": "path+root", "name": "root", "source": None},
+                {"id": "path+local", "name": "local", "source": None},
+                {
+                    "id": "registry+used",
+                    "name": "used",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index",
+                },
+                {
+                    "id": "registry+unused",
+                    "name": "unused",
+                    "source": "registry+https://github.com/rust-lang/crates.io-index",
+                },
+            ],
+            "resolve": {
+                "nodes": [
+                    {
+                        "id": "path+root",
+                        "deps": [{"pkg": "path+local"}, {"pkg": "registry+used"}],
+                    },
+                    {"id": "path+local", "deps": []},
+                    {"id": "registry+used", "deps": []},
+                    {"id": "registry+unused", "deps": []},
+                ]
+            },
+        }
+        completed = mock.Mock(stdout=json.dumps(metadata))
+
+        with mock.patch("tools.rust_size_gate.subprocess.run", return_value=completed) as run:
+            count, violations = CargoMetadataGate().check(
+                "root",
+                no_default_features=True,
+                features=[],
+                max_registry_packages=0,
+            )
+
+        self.assertEqual(1, count)
+        self.assertEqual("registry dependency budget exceeded", violations[0].rule)
+        run.assert_called_once()
+        self.assertIn("--no-default-features", run.call_args.args[0])
 
 
 if __name__ == "__main__":
