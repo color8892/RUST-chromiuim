@@ -62,7 +62,7 @@ impl MojoValidateResult {
     }
 }
 
-unsafe fn validate_mojo_message(
+pub unsafe fn validate_mojo_message(
     data: *const u8,
     len: usize,
     schema: *const MojoSchemaTable,
@@ -157,19 +157,280 @@ unsafe fn validate_mojo_message(
     MojoValidateResult::new(MojoValidateStatus::Ok, 0)
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn chromium_rust_mojo_validate_v1_internal(
-    data: *const u8,
-    len: usize,
-    schema: *const MojoSchemaTable,
-    out: *mut MojoValidateResult,
-) -> u32 {
-    if data.is_null() || schema.is_null() || out.is_null() {
-        return MojoValidateStatus::NullInput as u32;
+pub struct MojoMessageReader<'a> {
+    data: &'a [u8],
+    payload_offset: usize,
+}
+
+impl<'a> MojoMessageReader<'a> {
+    pub fn new(data: &'a [u8]) -> Option<Self> {
+        if data.len() < 24 {
+            return None;
+        }
+        let header_num_bytes = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
+        if header_num_bytes < 24 || header_num_bytes > data.len() {
+            return None;
+        }
+        Some(Self {
+            data,
+            payload_offset: header_num_bytes,
+        })
     }
-    let res = unsafe { validate_mojo_message(data, len, schema) };
-    unsafe { out.write(res) };
-    res.status
+
+    pub fn get_field_u32(&self, offset: usize) -> Option<u32> {
+        let f_offset = self.payload_offset + offset;
+        if f_offset + 4 > self.data.len() {
+            return None;
+        }
+        // SAFETY: boundary check guarantees slice index validity
+        unsafe {
+            let b0 = *self.data.get_unchecked(f_offset);
+            let b1 = *self.data.get_unchecked(f_offset + 1);
+            let b2 = *self.data.get_unchecked(f_offset + 2);
+            let b3 = *self.data.get_unchecked(f_offset + 3);
+            Some(u32::from_le_bytes([b0, b1, b2, b3]))
+        }
+    }
+
+    pub fn get_field_bytes(&self, offset: usize, size: usize) -> Option<&'a [u8]> {
+        let f_offset = self.payload_offset + offset;
+        if f_offset + size > self.data.len() {
+            return None;
+        }
+        // SAFETY: boundary check guarantees pointer dereference validity
+        unsafe {
+            Some(core::slice::from_raw_parts(self.data.as_ptr().add(f_offset), size))
+        }
+    }
+
+    pub fn get_field_str(&self, offset: usize, size: usize) -> Option<&'a str> {
+        let bytes = self.get_field_bytes(offset, size)?;
+        core::str::from_utf8(bytes).ok()
+    }
+
+    pub fn get_field_string(&self, offset: usize) -> Option<&'a str> {
+        let ptr_offset = self.payload_offset + offset;
+        if ptr_offset + 8 > self.data.len() {
+            return None;
+        }
+        
+        let rel_offset = unsafe {
+            let b0 = *self.data.get_unchecked(ptr_offset);
+            let b1 = *self.data.get_unchecked(ptr_offset + 1);
+            let b2 = *self.data.get_unchecked(ptr_offset + 2);
+            let b3 = *self.data.get_unchecked(ptr_offset + 3);
+            let b4 = *self.data.get_unchecked(ptr_offset + 4);
+            let b5 = *self.data.get_unchecked(ptr_offset + 5);
+            let b6 = *self.data.get_unchecked(ptr_offset + 6);
+            let b7 = *self.data.get_unchecked(ptr_offset + 7);
+            u64::from_le_bytes([b0, b1, b2, b3, b4, b5, b6, b7]) as usize
+        };
+        
+        if rel_offset == 0 {
+            return None;
+        }
+        
+        let abs_offset = ptr_offset + rel_offset;
+        if abs_offset + 8 > self.data.len() {
+            return None;
+        }
+        
+        let num_bytes = unsafe {
+            let b0 = *self.data.get_unchecked(abs_offset);
+            let b1 = *self.data.get_unchecked(abs_offset + 1);
+            let b2 = *self.data.get_unchecked(abs_offset + 2);
+            let b3 = *self.data.get_unchecked(abs_offset + 3);
+            u32::from_le_bytes([b0, b1, b2, b3]) as usize
+        };
+        
+        let num_elements = unsafe {
+            let b0 = *self.data.get_unchecked(abs_offset + 4);
+            let b1 = *self.data.get_unchecked(abs_offset + 5);
+            let b2 = *self.data.get_unchecked(abs_offset + 6);
+            let b3 = *self.data.get_unchecked(abs_offset + 7);
+            u32::from_le_bytes([b0, b1, b2, b3]) as usize
+        };
+        
+        if abs_offset + num_bytes > self.data.len() || 8 + num_elements > num_bytes {
+            return None;
+        }
+        
+        unsafe {
+            let ptr = self.data.as_ptr().add(abs_offset + 8);
+            let slice = core::slice::from_raw_parts(ptr, num_elements);
+            core::str::from_utf8(slice).ok()
+        }
+    }
+
+    pub fn get_field_array_u32(&self, offset: usize, out: &mut [u32]) -> Option<usize> {
+        let ptr_offset = self.payload_offset + offset;
+        if ptr_offset + 8 > self.data.len() {
+            return None;
+        }
+        
+        let rel_offset = unsafe {
+            let b0 = *self.data.get_unchecked(ptr_offset);
+            let b1 = *self.data.get_unchecked(ptr_offset + 1);
+            let b2 = *self.data.get_unchecked(ptr_offset + 2);
+            let b3 = *self.data.get_unchecked(ptr_offset + 3);
+            let b4 = *self.data.get_unchecked(ptr_offset + 4);
+            let b5 = *self.data.get_unchecked(ptr_offset + 5);
+            let b6 = *self.data.get_unchecked(ptr_offset + 6);
+            let b7 = *self.data.get_unchecked(ptr_offset + 7);
+            u64::from_le_bytes([b0, b1, b2, b3, b4, b5, b6, b7]) as usize
+        };
+        
+        if rel_offset == 0 {
+            return Some(0);
+        }
+        
+        let abs_offset = ptr_offset + rel_offset;
+        if abs_offset + 8 > self.data.len() {
+            return None;
+        }
+        
+        let num_bytes = unsafe {
+            let b0 = *self.data.get_unchecked(abs_offset);
+            let b1 = *self.data.get_unchecked(abs_offset + 1);
+            let b2 = *self.data.get_unchecked(abs_offset + 2);
+            let b3 = *self.data.get_unchecked(abs_offset + 3);
+            u32::from_le_bytes([b0, b1, b2, b3]) as usize
+        };
+        
+        let num_elements = unsafe {
+            let b0 = *self.data.get_unchecked(abs_offset + 4);
+            let b1 = *self.data.get_unchecked(abs_offset + 5);
+            let b2 = *self.data.get_unchecked(abs_offset + 6);
+            let b3 = *self.data.get_unchecked(abs_offset + 7);
+            u32::from_le_bytes([b0, b1, b2, b3]) as usize
+        };
+        
+        if abs_offset + num_bytes > self.data.len() || 8 + num_elements * 4 > num_bytes {
+            return None;
+        }
+        
+        let copy_len = core::cmp::min(num_elements, out.len());
+        for i in 0..copy_len {
+            let item_offset = abs_offset + 8 + i * 4;
+            unsafe {
+                let b0 = *self.data.get_unchecked(item_offset);
+                let b1 = *self.data.get_unchecked(item_offset + 1);
+                let b2 = *self.data.get_unchecked(item_offset + 2);
+                let b3 = *self.data.get_unchecked(item_offset + 3);
+                out[i] = u32::from_le_bytes([b0, b1, b2, b3]);
+            }
+        }
+        Some(num_elements)
+    }
+}
+
+pub struct MojoMessageBuilder<'a> {
+    buf: &'a mut [u8],
+    next_offset: usize,
+}
+
+impl<'a> MojoMessageBuilder<'a> {
+    pub fn new(buf: &'a mut [u8], initial_payload_size: usize) -> Self {
+        Self {
+            buf,
+            next_offset: 24 + initial_payload_size,
+        }
+    }
+
+    pub fn write_header(&mut self, header_size: u32, method_id: u32) -> Result<(), ()> {
+        if self.buf.len() < header_size as usize {
+            return Err(());
+        }
+        self.buf[0..4].copy_from_slice(&header_size.to_le_bytes());
+        if header_size >= 16 {
+            self.buf[12..16].copy_from_slice(&method_id.to_le_bytes());
+        }
+        Ok(())
+    }
+
+    pub fn write_field_u32(&mut self, payload_offset: usize, offset: usize, val: u32) -> Result<(), ()> {
+        let f_offset = payload_offset + offset;
+        if f_offset + 4 > self.buf.len() {
+            return Err(());
+        }
+        self.buf[f_offset..f_offset + 4].copy_from_slice(&val.to_le_bytes());
+        Ok(())
+    }
+
+    pub fn write_field_bytes(&mut self, payload_offset: usize, offset: usize, data: &[u8]) -> Result<(), ()> {
+        let f_offset = payload_offset + offset;
+        if f_offset + data.len() > self.buf.len() {
+            return Err(());
+        }
+        self.buf[f_offset..f_offset + data.len()].copy_from_slice(data);
+        Ok(())
+    }
+
+    pub fn write_field_string(&mut self, payload_offset: usize, offset: usize, val: &str) -> Result<(), ()> {
+        let ptr_offset = payload_offset + offset;
+        if ptr_offset + 8 > self.buf.len() {
+            return Err(());
+        }
+        
+        let aligned_offset = (self.next_offset + 7) & !7;
+        let rel_offset = (aligned_offset - ptr_offset) as u64;
+        self.buf[ptr_offset..ptr_offset + 8].copy_from_slice(&rel_offset.to_le_bytes());
+        
+        let num_elements = val.len();
+        let num_bytes = (8 + num_elements + 7) & !7;
+        
+        if aligned_offset + num_bytes > self.buf.len() {
+            return Err(());
+        }
+        
+        self.buf[aligned_offset..aligned_offset + 4].copy_from_slice(&(num_bytes as u32).to_le_bytes());
+        self.buf[aligned_offset + 4..aligned_offset + 8].copy_from_slice(&(num_elements as u32).to_le_bytes());
+        self.buf[aligned_offset + 8..aligned_offset + 8 + num_elements].copy_from_slice(val.as_bytes());
+        
+        for i in (8 + num_elements)..num_bytes {
+            self.buf[aligned_offset + i] = 0;
+        }
+        
+        self.next_offset = aligned_offset + num_bytes;
+        Ok(())
+    }
+
+    pub fn write_field_array_u32(&mut self, payload_offset: usize, offset: usize, val: &[u32]) -> Result<(), ()> {
+        let ptr_offset = payload_offset + offset;
+        if ptr_offset + 8 > self.buf.len() {
+            return Err(());
+        }
+        
+        let aligned_offset = (self.next_offset + 7) & !7;
+        let rel_offset = (aligned_offset - ptr_offset) as u64;
+        self.buf[ptr_offset..ptr_offset + 8].copy_from_slice(&rel_offset.to_le_bytes());
+        
+        let num_elements = val.len();
+        let num_bytes = (8 + num_elements * 4 + 7) & !7;
+        
+        if aligned_offset + num_bytes > self.buf.len() {
+            return Err(());
+        }
+        
+        self.buf[aligned_offset..aligned_offset + 4].copy_from_slice(&(num_bytes as u32).to_le_bytes());
+        self.buf[aligned_offset + 4..aligned_offset + 8].copy_from_slice(&(num_elements as u32).to_le_bytes());
+        
+        for i in 0..num_elements {
+            let item_offset = aligned_offset + 8 + i * 4;
+            self.buf[item_offset..item_offset + 4].copy_from_slice(&val[i].to_le_bytes());
+        }
+        
+        for i in (8 + num_elements * 4)..num_bytes {
+            self.buf[aligned_offset + i] = 0;
+        }
+        
+        self.next_offset = aligned_offset + num_bytes;
+        Ok(())
+    }
+
+    pub fn next_offset(&self) -> usize {
+        self.next_offset
+    }
 }
 
 #[cfg(test)]
@@ -195,25 +456,41 @@ mod tests {
             method_count: methods.len() as u32,
         };
 
-        // Construct 24 bytes header + 16 bytes payload = 40 bytes total message
         let mut msg = [0u8; 40];
-        // num_bytes (header size) = 24
         msg[0..4].copy_from_slice(&24u32.to_le_bytes());
-        // name (method_id) = 42
         msg[12..16].copy_from_slice(&42u32.to_le_bytes());
 
-        let mut out = MojoValidateResult { status: 99, error_offset: 99 };
-        let status = unsafe {
-            chromium_rust_mojo_validate_v1_internal(
-                msg.as_ptr(),
-                msg.len(),
-                &schema as *const _,
-                &mut out as *mut _,
-            )
-        };
+        let res = unsafe { validate_mojo_message(msg.as_ptr(), msg.len(), &schema as *const _) };
+        assert_eq!(res.status, MojoValidateStatus::Ok as u32);
+        assert_eq!(res.error_offset, 0);
+    }
 
-        assert_eq!(status, MojoValidateStatus::Ok as u32);
-        assert_eq!(out.status, MojoValidateStatus::Ok as u32);
-        assert_eq!(out.error_offset, 0);
+    #[test]
+    fn test_mojo_reader_writer_roundtrip() {
+        let mut buffer = [0u8; 128];
+        let mut builder = MojoMessageBuilder::new(&mut buffer, 16);
+
+        assert!(builder.write_header(24, 101).is_ok());
+        assert!(builder.write_field_u32(24, 0, 9999).is_ok());
+        assert!(builder.write_field_string(24, 8, "hello_mojo_string").is_ok());
+
+        let reader = MojoMessageReader::new(&buffer).expect("Reader init");
+        assert_eq!(reader.get_field_u32(0), Some(9999));
+        assert_eq!(reader.get_field_string(8), Some("hello_mojo_string"));
+    }
+
+    #[test]
+    fn test_mojo_array_roundtrip() {
+        let mut buffer = [0u8; 128];
+        let mut builder = MojoMessageBuilder::new(&mut buffer, 16);
+
+        assert!(builder.write_header(24, 102).is_ok());
+        assert!(builder.write_field_array_u32(24, 0, &[10, 20, 30, 40]).is_ok());
+
+        let reader = MojoMessageReader::new(&buffer).expect("Reader init");
+        let mut out = [0u32; 4];
+        let len = reader.get_field_array_u32(0, &mut out).expect("Read array");
+        assert_eq!(len, 4);
+        assert_eq!(out, [10, 20, 30, 40]);
     }
 }

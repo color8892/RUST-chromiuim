@@ -12,3 +12,7 @@ crate-type = ["staticlib"]
 chromium_rust_http_header_scanner = { path = "../hot_leaf/http_header_scanner", default-features = false }
 chromium_rust_url_canonicalizer = { path = "../hot_leaf/url_canonicalizer", default-features = false }
 chromium_rust_mojo_validator = { path = "../hot_leaf/mojo_validator", default-features = false }
+cxx = { workspace = true }
+
+[build-dependencies]
+cxx-build = "1.0"

@@ -59,6 +59,67 @@ uint32_t chromium_rust_mojo_validate_v1(
     chromium_rust_perf::MojoValidateResult* out
 );
 
+// FFI callback types for Task Runner Executor
+typedef void (*ChromiumCallback)(void* user_data);
+typedef uint32_t (*PostTaskFn)(void* runner, ChromiumCallback callback, void* user_data);
+
+void chromium_rust_async_executor_init(
+    void* runner,
+    PostTaskFn post_fn
+);
+
+uint32_t chromium_rust_async_executor_test_run(
+    size_t yield_count
+);
+
+ptrdiff_t chromium_rust_mojo_writer_test(
+    uint8_t* buf,
+    size_t buf_len,
+    uint32_t method_id,
+    size_t field_offset,
+    uint32_t field_val
+);
+
+int64_t chromium_rust_mojo_reader_test(
+    const uint8_t* data,
+    size_t len,
+    size_t field_offset
+);
+
+ptrdiff_t chromium_rust_mojo_writer_string_test(
+    uint8_t* buf,
+    size_t buf_len,
+    uint32_t method_id,
+    size_t field_offset,
+    const uint8_t* str_ptr,
+    size_t str_len
+);
+
+ptrdiff_t chromium_rust_mojo_reader_string_test(
+    const uint8_t* data,
+    size_t len,
+    size_t field_offset,
+    uint8_t* out_buf,
+    size_t out_len
+);
+
+ptrdiff_t chromium_rust_mojo_writer_array_u32_test(
+    uint8_t* buf,
+    size_t buf_len,
+    uint32_t method_id,
+    size_t field_offset,
+    const uint32_t* array_ptr,
+    size_t array_len
+);
+
+ptrdiff_t chromium_rust_mojo_reader_array_u32_test(
+    const uint8_t* data,
+    size_t len,
+    size_t field_offset,
+    uint32_t* out_array,
+    size_t out_len
+);
+
 }
 
 #endif // INCLUDE_CHROMIUM_RUST_PERF_MOJO_VALIDATOR_FFI_H_

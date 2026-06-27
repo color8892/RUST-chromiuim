@@ -11,6 +11,7 @@
 #include "cpp/mojo_validator_adapter.h"
 #include "cpp/mojo_validator_baseline.h"
 #include "cpp/test_fixtures.h"
+#include "include/chromium_rust_perf/cxx_bridge.rs.h"
 
 int g_test_count = 0;
 int g_fail_count = 0;
@@ -581,6 +582,101 @@ void TestMojoRollbackMechanism() {
     EXPECT_TRUE(!MojoMessageValidator::IsRollbackEnabled(), "MojoRollbackFalseReset");
 }
 
+void RunMojoReaderWriterTests() {
+    std::cout << "[Mojo Serialization Tests] Running zero-copy read/write checks..." << std::endl;
+    uint8_t buf[128] = {0};
+    
+    // 1. Fixed size field test
+    ptrdiff_t written = chromium_rust_mojo_writer_test(buf, sizeof(buf), 101, 8, 12345);
+    EXPECT_TRUE(written > 0, "MojoWriterTestReturn");
+
+    int64_t val = chromium_rust_mojo_reader_test(buf, sizeof(buf), 8);
+    EXPECT_EQ(val, 12345, "MojoReaderTestValue");
+
+    // 2. Dynamic string field test
+    std::string test_str = "hello_chromium_rust_mojo_ipc";
+    std::memset(buf, 0, sizeof(buf));
+    ptrdiff_t written_str = chromium_rust_mojo_writer_string_test(
+        buf, sizeof(buf), 102, 8, 
+        reinterpret_cast<const uint8_t*>(test_str.data()), test_str.size()
+    );
+    EXPECT_TRUE(written_str > 0, "MojoWriterStringTestReturn");
+
+    uint8_t out_str[64] = {0};
+    ptrdiff_t read_str_len = chromium_rust_mojo_reader_string_test(
+        buf, sizeof(buf), 8, out_str, sizeof(out_str)
+    );
+    EXPECT_EQ(read_str_len, static_cast<ptrdiff_t>(test_str.size()), "MojoReaderStringLen");
+    EXPECT_EQ(std::memcmp(out_str, test_str.data(), test_str.size()), 0, "MojoReaderStringContent");
+
+    // 3. Dynamic array field test
+    std::vector<uint32_t> test_array = {11, 22, 33, 44, 55};
+    std::memset(buf, 0, sizeof(buf));
+    ptrdiff_t written_arr = chromium_rust_mojo_writer_array_u32_test(
+        buf, sizeof(buf), 103, 8, test_array.data(), test_array.size()
+    );
+    EXPECT_TRUE(written_arr > 0, "MojoWriterArrayTestReturn");
+
+    uint32_t out_array[8] = {0};
+    ptrdiff_t read_arr_len = chromium_rust_mojo_reader_array_u32_test(
+        buf, sizeof(buf), 8, out_array, 8
+    );
+    EXPECT_EQ(read_arr_len, static_cast<ptrdiff_t>(test_array.size()), "MojoReaderArrayLen");
+    for (size_t i = 0; i < test_array.size(); i++) {
+        EXPECT_EQ(out_array[i], test_array[i], "MojoReaderArrayValue");
+    }
+}
+
+struct MockTaskRunner {
+    int post_count = 0;
+    ChromiumCallback last_callback = nullptr;
+    void* last_user_data = nullptr;
+};
+
+uint32_t MockPostTask(void* runner, ChromiumCallback callback, void* user_data) {
+    auto* mock = static_cast<MockTaskRunner*>(runner);
+    mock->post_count++;
+    mock->last_callback = callback;
+    mock->last_user_data = user_data;
+    return 1;
+}
+
+void RunTaskRunnerBridgeTests() {
+    std::cout << "[Threading Bridge Tests] Verifying C++ Task Runner posting..." << std::endl;
+    MockTaskRunner runner;
+    
+    // Initialize async bridge
+    chromium_rust_async_executor_init(&runner, MockPostTask);
+    
+    // Start an async future with yield_count = 2
+    uint32_t immediately_done = chromium_rust_async_executor_test_run(2);
+    EXPECT_EQ(immediately_done, 0, "AsyncExecutorPendingCount");
+    EXPECT_EQ(runner.post_count, 1, "AsyncExecutorPostCount1");
+
+    // Run first callback (decrements yield count, wakes executor)
+    EXPECT_TRUE(runner.last_callback != nullptr, "CallbackNotNull1");
+    runner.last_callback(runner.last_user_data);
+    EXPECT_EQ(runner.post_count, 2, "AsyncExecutorPostCount2");
+
+    // Run second callback (future resolves)
+    EXPECT_TRUE(runner.last_callback != nullptr, "CallbackNotNull2");
+    runner.last_callback(runner.last_user_data);
+    
+    // No more posts since future completed
+    EXPECT_EQ(runner.post_count, 2, "AsyncExecutorPostCountFinal");
+}
+
+void RunCxxBridgeTests() {
+    std::cout << "[cxx Bridge Tests] Verifying type-safe compile checks..." << std::endl;
+    std::vector<uint8_t> msg(40, 0);
+    msg[0] = 24;
+    msg[12] = 99;
+
+    rust::Slice<const uint8_t> data_slice(msg.data(), msg.size());
+    auto res = ::chromium_rust_perf::validate_mojo_cxx(data_slice, 99);
+    EXPECT_EQ(res.status, 0, "CxxBridgeValidateOk");
+}
+
 int main() {
     std::cout << "================================================================" << std::endl;
     std::cout << "         Chromium Rust C++ & FFI Differential Tests             " << std::endl;
@@ -597,6 +693,10 @@ int main() {
     RunMojoUnitTests();
     RunMojoDifferentialTests();
     TestMojoRollbackMechanism();
+    
+    RunMojoReaderWriterTests();
+    RunTaskRunnerBridgeTests();
+    RunCxxBridgeTests();
 
     std::cout << "================================================================" << std::endl;
     std::cout << "Tests Run: " << g_test_count << " | Failures: " << g_fail_count << std::endl;

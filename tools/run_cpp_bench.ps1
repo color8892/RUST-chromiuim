@@ -104,6 +104,7 @@ if ($compiler -eq "clang++") {
     $compileCmd = @(
         "cl",
         "/O2",
+        "/MD",
         "/std:c++17",
         "/EHsc",
         "/I.",

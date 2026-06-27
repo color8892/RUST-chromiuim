@@ -1,0 +1,29 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# =============================================================================
+# CHROMIUM BUILD ARGS TEMPLATE (OPTION A - LIGHTWEIGHT FULL BROWSER)
+# =============================================================================
+# Copy the contents of this file into your Chromium build directory's args.gn
+# (e.g., out/Release/args.gn) to apply the optimizations.
+# =============================================================================
+
+# 1. Size & Speed Optimizations
+is_debug = false                 # Generate Release build
+symbol_level = 0                 # Strip all debug symbols to minimize binary sizes
+is_official_build = true         # Enable Link-Time Optimization (LTO) & dead code elimination
+optimize_for_size = true         # Direct compiler to prioritize code size optimizations
+
+# 2. Locale Resources Thinning
+# Only build English and Traditional Chinese localization files, saving ~15MB+
+limit_to_locales = [ "en-US", "zh-TW" ]
+
+# 3. CPU Rendering Fallback Removal
+# Disable Vulkan/GL software rasterization engine (SwiftShader)
+# Requires system to have functional hardware GPU drivers.
+use_swiftshader = false
+
+# 4. Outdated OS & Sandbox Compatibility Cleanup
+enable_nacl = false              # Disable deprecated Native Client sandboxing
+target_cpu = "x64"               # Compile strictly for modern 64-bit platforms

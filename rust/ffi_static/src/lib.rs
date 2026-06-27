@@ -1,4 +1,3 @@
-#![no_std]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::panic)]
@@ -7,7 +6,8 @@
 #![deny(clippy::todo)]
 #![deny(clippy::unwrap_used)]
 
-use core::panic::PanicInfo;
+pub mod task_runner_bridge;
+pub mod cxx_bridge;
 
 pub use chromium_rust_http_header_scanner::ChromiumRustHttpHeaderScanResult;
 pub use chromium_rust_url_canonicalizer::ChromiumRustUrlParseResult;
@@ -110,18 +110,154 @@ pub unsafe extern "C" fn chromium_rust_mojo_validate_v1(
     schema: *const chromium_rust_mojo_validator::MojoSchemaTable,
     out: *mut chromium_rust_mojo_validator::MojoValidateResult,
 ) -> u32 {
+    if data.is_null() || schema.is_null() || out.is_null() {
+        return 1; // MojoValidateStatus::NullInput
+    }
     // SAFETY: caller guarantees pointer validity contracts.
-    unsafe { chromium_rust_mojo_validator::chromium_rust_mojo_validate_v1_internal(data, len, schema, out) }
+    let res = unsafe { chromium_rust_mojo_validator::validate_mojo_message(data, len, schema) };
+    unsafe { out.write(res) };
+    res.status
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn chromium_rust_mojo_writer_test(
+    buf: *mut u8,
+    buf_len: usize,
+    method_id: u32,
+    field_offset: usize,
+    field_val: u32,
+) -> isize {
+    if buf.is_null() {
+        return -1;
+    }
+    let slice = unsafe { core::slice::from_raw_parts_mut(buf, buf_len) };
+    let mut builder = chromium_rust_mojo_validator::MojoMessageBuilder::new(slice, field_offset + 4);
+    if builder.write_header(24, method_id).is_err() {
+        return -1;
+    }
+    if builder.write_field_u32(24, field_offset, field_val).is_err() {
+        return -1;
+    }
+    builder.next_offset() as isize
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn chromium_rust_mojo_reader_test(
+    data: *const u8,
+    len: usize,
+    field_offset: usize,
+) -> i64 {
+    if data.is_null() {
+        return -1;
+    }
+    let slice = unsafe { core::slice::from_raw_parts(data, len) };
+    if let Some(reader) = chromium_rust_mojo_validator::MojoMessageReader::new(slice) {
+        if let Some(val) = reader.get_field_u32(field_offset) {
+            return val as i64;
+        }
+    }
+    -1
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn chromium_rust_mojo_writer_string_test(
+    buf: *mut u8,
+    buf_len: usize,
+    method_id: u32,
+    field_offset: usize,
+    str_ptr: *const u8,
+    str_len: usize,
+) -> isize {
+    if buf.is_null() || str_ptr.is_null() {
+        return -1;
+    }
+    let slice = unsafe { core::slice::from_raw_parts_mut(buf, buf_len) };
+    let str_bytes = unsafe { core::slice::from_raw_parts(str_ptr, str_len) };
+    let str_val = match core::str::from_utf8(str_bytes) {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+    let mut builder = chromium_rust_mojo_validator::MojoMessageBuilder::new(slice, field_offset + 8);
+    if builder.write_header(24, method_id).is_err() {
+        return -1;
+    }
+    if builder.write_field_string(24, field_offset, str_val).is_err() {
+        return -1;
+    }
+    builder.next_offset() as isize
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn chromium_rust_mojo_reader_string_test(
+    data: *const u8,
+    len: usize,
+    field_offset: usize,
+    out_buf: *mut u8,
+    out_len: usize,
+) -> isize {
+    if data.is_null() || out_buf.is_null() {
+        return -1;
+    }
+    let slice = unsafe { core::slice::from_raw_parts(data, len) };
+    if let Some(reader) = chromium_rust_mojo_validator::MojoMessageReader::new(slice) {
+        if let Some(val) = reader.get_field_string(field_offset) {
+            let val_bytes = val.as_bytes();
+            if val_bytes.len() > out_len {
+                return -1;
+            }
+            unsafe {
+                core::ptr::copy_nonoverlapping(val_bytes.as_ptr(), out_buf, val_bytes.len());
+            }
+            return val_bytes.len() as isize;
+        }
+    }
+    -1
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn chromium_rust_mojo_writer_array_u32_test(
+    buf: *mut u8,
+    buf_len: usize,
+    method_id: u32,
+    field_offset: usize,
+    array_ptr: *const u32,
+    array_len: usize,
+) -> isize {
+    if buf.is_null() || array_ptr.is_null() {
+        return -1;
+    }
+    let slice = unsafe { core::slice::from_raw_parts_mut(buf, buf_len) };
+    let array_val = unsafe { core::slice::from_raw_parts(array_ptr, array_len) };
+    let mut builder = chromium_rust_mojo_validator::MojoMessageBuilder::new(slice, field_offset + 8);
+    if builder.write_header(24, method_id).is_err() {
+        return -1;
+    }
+    if builder.write_field_array_u32(24, field_offset, array_val).is_err() {
+        return -1;
+    }
+    builder.next_offset() as isize
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn chromium_rust_mojo_reader_array_u32_test(
+    data: *const u8,
+    len: usize,
+    field_offset: usize,
+    out_array: *mut u32,
+    out_len: usize,
+) -> isize {
+    if data.is_null() || out_array.is_null() {
+        return -1;
+    }
+    let slice = unsafe { core::slice::from_raw_parts(data, len) };
+    if let Some(reader) = chromium_rust_mojo_validator::MojoMessageReader::new(slice) {
+        let out_slice = unsafe { core::slice::from_raw_parts_mut(out_array, out_len) };
+        if let Some(written) = reader.get_field_array_u32(field_offset, out_slice) {
+            return written as isize;
+        }
+    }
+    -1
 }
 
 
-extern "C" {
-    fn abort() -> !;
-}
 
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(_info: &PanicInfo<'_>) -> ! {
-    // SAFETY: abort terminates the process without formatting or unwinding.
-    unsafe { abort() }
-}
