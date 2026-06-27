@@ -668,13 +668,49 @@ void RunTaskRunnerBridgeTests() {
 
 void RunCxxBridgeTests() {
     std::cout << "[cxx Bridge Tests] Verifying type-safe compile checks..." << std::endl;
+    
+    // 1. Mojo cxx Validation
     std::vector<uint8_t> msg(40, 0);
     msg[0] = 24;
     msg[12] = 99;
-
     rust::Slice<const uint8_t> data_slice(msg.data(), msg.size());
-    auto res = ::chromium_rust_perf::validate_mojo_cxx(data_slice, 99);
-    EXPECT_EQ(res.status, 0, "CxxBridgeValidateOk");
+    auto res_mojo = ::chromium_rust_perf::validate_mojo_cxx(data_slice, 99);
+    EXPECT_EQ(res_mojo.status, 0, "CxxBridgeValidateOk");
+
+    // 2. HTTP Scanner cxx Scan
+    std::string header_data = "Host: google.com\r\nContent-Length: 42\r\n\r\n";
+    rust::Slice<const uint8_t> header_slice(
+        reinterpret_cast<const uint8_t*>(header_data.data()), header_data.size()
+    );
+    auto res_http = ::chromium_rust_perf::scan_http_headers_cxx(header_slice, 10, 1024);
+    EXPECT_EQ(res_http.status, 0, "CxxBridgeHttpScanOk");
+    EXPECT_EQ(res_http.line_count, 2, "CxxBridgeHttpLineCount");
+
+    // 3. URL Parser cxx Parse
+    std::string url_data = "https://user:pass@google.com:8080/path";
+    auto res_url = ::chromium_rust_perf::parse_url_cxx(url_data);
+    EXPECT_EQ(res_url.status, 0, "CxxBridgeUrlParseOk");
+    EXPECT_EQ(res_url.scheme_start, 0, "CxxBridgeUrlSchemeStart");
+    EXPECT_EQ(res_url.scheme_len, 5, "CxxBridgeUrlSchemeLen");
+
+    // 4. URL Host Canonicalizer cxx Canonicalize
+    std::string host_input = "GOOgle.COM";
+    uint8_t host_out[64] = {0};
+    rust::Slice<uint8_t> host_out_slice(host_out, sizeof(host_out));
+    ptrdiff_t host_len = ::chromium_rust_perf::canonicalize_host_cxx(host_input, host_out_slice);
+    EXPECT_TRUE(host_len > 0, "CxxBridgeHostCanonReturn");
+    EXPECT_EQ(std::string(reinterpret_cast<char*>(host_out), host_len), "google.com", "CxxBridgeHostCanonContent");
+
+    // 5. URL Percent Decode cxx Decode
+    std::string decode_input = "hello%41world";
+    rust::Slice<const uint8_t> decode_in_slice(
+        reinterpret_cast<const uint8_t*>(decode_input.data()), decode_input.size()
+    );
+    uint8_t decode_out[64] = {0};
+    rust::Slice<uint8_t> decode_out_slice(decode_out, sizeof(decode_out));
+    ptrdiff_t decode_len = ::chromium_rust_perf::percent_decode_cxx(decode_in_slice, decode_out_slice);
+    EXPECT_EQ(decode_len, 11, "CxxBridgeDecodeReturn");
+    EXPECT_EQ(std::string(reinterpret_cast<char*>(decode_out), decode_len), "helloAworld", "CxxBridgeDecodeContent");
 }
 
 int main() {
