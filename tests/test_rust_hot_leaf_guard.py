@@ -29,6 +29,27 @@ class RustHotLeafGuardTest(unittest.TestCase):
 
             self.assertEqual([], violations)
 
+    def test_accepts_no_std_with_std_feature_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = root / "lib.rs"
+            src.write_text(
+                "\n".join(
+                    [
+                        '#![cfg_attr(all(not(test), not(feature = "std")), no_std)]',
+                        "pub extern \"C\" fn scan(data: *const u8, len: usize) -> u32 {",
+                        "    if data.is_null() && len != 0 { return 1; }",
+                        "    0",
+                        "}",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            violations = RustSourcePolicy().check_file(src)
+
+            self.assertEqual([], violations)
+
     def test_rejects_missing_no_std_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             src = Path(tmp) / "lib.rs"

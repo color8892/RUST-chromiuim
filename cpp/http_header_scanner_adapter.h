@@ -43,6 +43,9 @@ class HttpHeaderScanner final {
  public:
   explicit HttpHeaderScanner(HttpHeaderScanOptions options) noexcept;
 
+  static void SetRollbackEnabled(bool enabled) noexcept;
+  static bool IsRollbackEnabled() noexcept;
+
   HttpHeaderScanner(const HttpHeaderScanner&) = delete;
   HttpHeaderScanner& operator=(const HttpHeaderScanner&) = delete;
 

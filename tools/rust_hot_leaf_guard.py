@@ -75,7 +75,11 @@ class RustSourcePolicy:
 
     @staticmethod
     def _has_no_std_gate(text: str) -> bool:
-        return "#![no_std]" in text or "#![cfg_attr(not(test), no_std)]" in text
+        return (
+            "#![no_std]" in text or
+            "#![cfg_attr(not(test), no_std)]" in text or
+            '#![cfg_attr(all(not(test), not(feature = "std")), no_std)]' in text
+        )
 
     @staticmethod
     def _strip_test_modules(text: str) -> str:

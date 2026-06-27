@@ -1,0 +1,15 @@
+[package]
+name = "chromium-rust-http-header-scanner-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+libfuzzer-sys = "0.4"
+chromium_rust_http_header_scanner = { path = "../rust/hot_leaf/http_header_scanner" }
+
+[[bin]]
+name = "http_scan_fuzz"
+path = "fuzz_targets/http_scan_fuzz.rs"
+test = false
+doc = false

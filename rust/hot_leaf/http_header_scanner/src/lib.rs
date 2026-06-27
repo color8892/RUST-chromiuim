@@ -7,9 +7,6 @@
 #![deny(clippy::todo)]
 #![deny(clippy::unwrap_used)]
 
-#[cfg(not(test))]
-use core::panic::PanicInfo;
-
 const DEFAULT_STATUS_OFFSET: usize = 0;
 
 #[repr(u32)]
@@ -99,8 +96,7 @@ impl HeaderScanner {
 /// duration of this call. If `len` is non-zero, `data` must point to `len`
 /// readable bytes for the duration of this call. Rust never stores either
 /// pointer after returning.
-#[no_mangle]
-pub unsafe extern "C" fn chromium_rust_http_scan_headers_v1(
+pub unsafe extern "C" fn chromium_rust_http_scan_headers_v1_internal(
     data: *const u8,
     len: usize,
     max_lines: u32,
@@ -213,18 +209,6 @@ fn scan_header_block(input: &[u8], policy: ScanPolicy) -> ChromiumRustHttpHeader
     ChromiumRustHttpHeaderScanResult::new(ScanStatus::Incomplete)
 }
 
-#[cfg(not(test))]
-extern "C" {
-    fn abort() -> !;
-}
-
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(_info: &PanicInfo<'_>) -> ! {
-    // SAFETY: abort terminates the process without formatting or unwinding.
-    unsafe { abort() }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -295,8 +279,9 @@ mod tests {
     fn rejects_invalid_policy() {
         let mut out = ChromiumRustHttpHeaderScanResult::new(ScanStatus::Ok);
 
-        let status =
-            unsafe { chromium_rust_http_scan_headers_v1(b"\r\n".as_ptr(), 2, 0, 32, &mut out) };
+        let status = unsafe {
+            chromium_rust_http_scan_headers_v1_internal(b"\r\n".as_ptr(), 2, 0, 32, &mut out)
+        };
 
         assert_eq!(status, ScanStatus::InvalidPolicy.code());
         assert_eq!(out.status, ScanStatus::InvalidPolicy.code());
@@ -305,7 +290,13 @@ mod tests {
     #[test]
     fn rejects_null_output_without_touching_input() {
         let status = unsafe {
-            chromium_rust_http_scan_headers_v1(core::ptr::null(), 16, 4, 32, core::ptr::null_mut())
+            chromium_rust_http_scan_headers_v1_internal(
+                core::ptr::null(),
+                16,
+                4,
+                32,
+                core::ptr::null_mut(),
+            )
         };
 
         assert_eq!(status, ScanStatus::OutputNull.code());
@@ -315,8 +306,9 @@ mod tests {
     fn rejects_null_input_when_length_is_non_zero() {
         let mut out = ChromiumRustHttpHeaderScanResult::new(ScanStatus::Ok);
 
-        let status =
-            unsafe { chromium_rust_http_scan_headers_v1(core::ptr::null(), 16, 4, 32, &mut out) };
+        let status = unsafe {
+            chromium_rust_http_scan_headers_v1_internal(core::ptr::null(), 16, 4, 32, &mut out)
+        };
 
         assert_eq!(status, ScanStatus::NullInput.code());
         assert_eq!(out.status, ScanStatus::NullInput.code());
@@ -326,8 +318,9 @@ mod tests {
     fn allows_null_input_for_empty_buffer() {
         let mut out = ChromiumRustHttpHeaderScanResult::new(ScanStatus::Ok);
 
-        let status =
-            unsafe { chromium_rust_http_scan_headers_v1(core::ptr::null(), 0, 4, 32, &mut out) };
+        let status = unsafe {
+            chromium_rust_http_scan_headers_v1_internal(core::ptr::null(), 0, 4, 32, &mut out)
+        };
 
         assert_eq!(status, ScanStatus::Incomplete.code());
         assert_eq!(out.status, ScanStatus::Incomplete.code());

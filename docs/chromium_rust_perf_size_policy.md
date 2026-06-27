@@ -8,9 +8,10 @@
 - Release profile 必須使用 `panic = "abort"`、ThinLTO、單一 codegen unit、無 debug info、strip symbols。
 - FFI-facing Rust function 不得 panic crossing；錯誤一律回傳 compact numeric status。
 - Hot path 禁止 `format!`、`write!`、`println!`、`dbg!`、`Debug`/`Display` formatting、`unwrap`、`expect`、`panic!`、`todo!`、`unimplemented!`。
+- Hot path 應避免使用隱式邊界檢查（例如常規的 `slice[index]` 索引）。應優先使用迭代器（Iterator）、安全的 `get` API，或在經靜態證明安全的前提下使用 `unsafe { *slice.get_unchecked(index) }`。凡是在 Release 產物中引發 `panic_bounds_check` 符號的代碼均無法通過 Gate。
 - Hot path 禁止跨 FFI owned `String`、`Vec`、`CxxString` conversion。C++ owns input memory，Rust 僅建立 call-scoped slice。
 - Rust 不得保存 C++ raw pointer。Async work 必須改傳 shared-memory ownership handle 或 ref-counted mapping lease。
-- Public Rust API 禁止 unconstrained generics。會造成超過兩個 instantiation 的策略型泛型必須改為 `enum`、table-driven dispatch 或 `&dyn Trait`。
+- Public Rust API 禁止 unconstrained generics。會造成超過兩個 instantiation 的策略型泛型必須改為 `enum` 或是經過效能與體積評估的 table-driven dispatch，儘量避免使用帶有間接跳轉（Indirect Branch）開銷與 vtable 的 `dyn Trait`。
 - 每個 migration 必須有 differential tests、fuzz target plan、microbenchmark、binary size diff、rollback flag。
 
 ## Hot Path ABI
@@ -28,7 +29,8 @@ Hot path ABI 使用 C ABI，不使用 `cxx` 的 owned type bridge。允許：
 - Rust-owned `String`/`Vec` return
 - per-token callback into C++
 - C++ object pointer retained by Rust
-- treating borrowed C++ memory as Rust `'static`
+- treating borrowed C++ memory as Rust `'static`（FFI 借用指標必須在文檔中明確標註生命週期約束）
+- 未遵循統一命名空間命名之 `#[no_mangle]` 函數（所有暴露給 C++ 的函數必須使用 `chromium_rust_<crate_name>_<func_name>` 格式，並建議包含版本號後綴如 `_v1`）
 
 ## Component Order
 

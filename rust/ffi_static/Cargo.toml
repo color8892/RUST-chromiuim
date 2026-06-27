@@ -1,0 +1,13 @@
+[package]
+name = "chromium_rust_perf_ffi_static"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+chromium_rust_http_header_scanner = { path = "../hot_leaf/http_header_scanner", default-features = false }
+chromium_rust_url_canonicalizer = { path = "../hot_leaf/url_canonicalizer", default-features = false }

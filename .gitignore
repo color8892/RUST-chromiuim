@@ -10,3 +10,4 @@ __pycache__/
 *.a
 *.lib
 *.rlib
+*.exe
