@@ -41,6 +41,29 @@ The repository enforces six automated quality gates:
 | **C++ Differential Tests** | `run_cpp_tests.ps1` | Runs 15,000+ prefix and mutation test cases, comparing C++ and Rust outputs. |
 | **C++ Benchmark Gate** | `run_cpp_bench.ps1` | Compares microbenchmark throughput of Rust FFI vs C++ baselines. |
 | **FFI Mutation Fuzzer** | `run_local_fuzz.ps1` | Mutates headers, URLs, and Mojo inputs to detect memory corruption or panic aborts. |
+| **Chromium Integration Readiness** | `check_chromium_integration_readiness.ps1` | Verifies this repo has the local scaffold required before importing into a real Chromium checkout. |
+
+---
+
+## 2.1 Chromium Integration Boundary
+
+The following work cannot be honestly completed inside this standalone repo:
+
+- Blink LayoutNG Rust migration.
+- V8 parser / JIT / GC Rust migration.
+- Browser process object graph replacement.
+- Chromium TaskRunner / ThreadPool replacement.
+- GPU command runtime replacement.
+- Android official `supersize diff`.
+- Blink `web_tests` / WPT coverage.
+- Chromium fuzz corpus integration.
+
+Those tasks require a real Chromium checkout. Use
+`docs/chromium_integration_roadmap.md` as the controlling document and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/check_chromium_integration_readiness.ps1 -ChromiumRoot C:\path\to\chromium\src
+```
 
 ---
 

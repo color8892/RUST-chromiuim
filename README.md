@@ -13,6 +13,18 @@ It intentionally starts with hot leaf modules instead of touching Chromium orche
 - `cpp/url_canonicalizer_adapter.*`: C++ facade that maps returned ranges into `std::string_view`.
 - `tools/rust_hot_leaf_guard.py`: source and artifact guard for panic, formatting, allocation, generic, and FFI-copy hazards.
 - `docs/chromium_rust_perf_size_policy.md`: project policy that future agents must follow.
+- `docs/chromium_integration_roadmap.md`: boundary document for real Chromium GN, Android supersize, WPT, and fuzz integration.
+
+Current non-goals in this standalone repo:
+
+- Blink LayoutNG core rewrite.
+- V8 parser, JIT, or GC rewrite.
+- Browser process object graph rewrite.
+- Chromium TaskRunner / ThreadPool replacement.
+- GPU command runtime rewrite.
+
+Those require a real Chromium checkout and must start as narrow leaf integrations
+with rollback, differential tests, size reports, and benchmark gates.
 
 Run checks:
 
@@ -42,6 +54,7 @@ Local C++ harnesses:
 powershell -ExecutionPolicy Bypass -File tools/run_cpp_tests.ps1
 powershell -ExecutionPolicy Bypass -File tools/run_cpp_bench.ps1
 powershell -ExecutionPolicy Bypass -File tools/run_local_fuzz.ps1
+powershell -ExecutionPolicy Bypass -File tools/check_chromium_integration_readiness.ps1
 ```
 
 `run_cpp_bench.ps1` writes `target/bench/http_header_scanner.json` and runs `tools/rust_perf_gate.py` so benchmark output is machine-checkable.

@@ -38,6 +38,11 @@ Run-GateStep "Python Gate Tools CLI Verification" {
     python tools/rust_perf_gate.py --help > $null
 }
 
+# 2.1 Chromium integration readiness scaffold.
+Run-GateStep "Chromium Integration Readiness Scaffold" {
+    powershell -ExecutionPolicy Bypass -File tools/check_chromium_integration_readiness.ps1
+}
+
 # 3. Source / Artifact Guard & Size Gate
 Run-GateStep "Source/Artifact Guard & Size Gate" {
     powershell -ExecutionPolicy Bypass -File tools/run_size_gate.ps1
