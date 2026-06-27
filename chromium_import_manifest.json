@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "default_destination": "third_party/rust/chromium_rust_perf",
+  "required_chromium_paths": [
+    "build/config/rust.gni",
+    "third_party/blink",
+    "v8",
+    "mojo"
+  ],
+  "files": [
+    "BUILD.gn",
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+    "CI_DOCUMENTATION.md",
+    "args.gn.template",
+    "budgets",
+    "cpp",
+    "cpp_bench",
+    "cpp_fuzz",
+    "cpp_test",
+    "docs",
+    "fuzz",
+    "include",
+    "rust",
+    "tests",
+    "tools"
+  ],
+  "exclude": [
+    ".git",
+    ".codegraph",
+    ".codebase-memory",
+    "target",
+    "__pycache__",
+    "*.obj",
+    "*.exe",
+    "*.lib",
+    "*.rlib",
+    "*.pdb",
+    "*.ilk",
+    "*.pyc"
+  ]
+}

@@ -65,6 +65,13 @@ Those tasks require a real Chromium checkout. Use
 powershell -ExecutionPolicy Bypass -File tools/check_chromium_integration_readiness.ps1 -ChromiumRoot C:\path\to\chromium\src
 ```
 
+To stage the scaffold into a Chromium checkout without editing unrelated
+Chromium files, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/prepare_chromium_import.ps1 -ChromiumRoot C:\path\to\chromium\src -DryRun
+```
+
 ---
 
 ## 3. Performance Budget Update Workflow

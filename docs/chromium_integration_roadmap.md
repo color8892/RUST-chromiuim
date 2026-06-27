@@ -63,6 +63,37 @@ The recommended first CL is HTTP header scanning or URL component parsing. Mojo
 validation should remain prototype/informational until the FFI fixed-cost problem
 is resolved with a coarser message batch or generated validator table.
 
+## Import Preparation
+
+Use `chromium_import_manifest.json` and `tools/prepare_chromium_import.ps1` to
+stage this scaffold into a real Chromium checkout.
+
+Dry run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/prepare_chromium_import.ps1 `
+  -ChromiumRoot C:\path\to\chromium\src `
+  -DryRun
+```
+
+Copy into the default destination:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/prepare_chromium_import.ps1 `
+  -ChromiumRoot C:\path\to\chromium\src
+```
+
+Default destination:
+
+```text
+third_party/rust/chromium_rust_perf
+```
+
+The import script validates that the target tree looks like Chromium before it
+copies anything. It does not edit Chromium build files outside the destination;
+the integration CL must wire the imported `BUILD.gn` into the relevant Chromium
+target explicitly.
+
 ## Non-Goals
 
 These items are explicitly out of scope for the current repository:
