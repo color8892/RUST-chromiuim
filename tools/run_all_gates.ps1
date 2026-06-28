@@ -38,6 +38,7 @@ Run-GateStep "Python Gate Tools CLI Verification" {
     python tools/rust_perf_gate.py --help > $null
     python tools/check_p0_hot_leaf_registry.py --help > $null
     python tools/check_fuzz_corpus_manifest.py --help > $null
+    python tools/emit_fuzz_corpus_replay.py --help > $null
 }
 
 # 2.0 P0 component registry.
@@ -48,6 +49,11 @@ Run-GateStep "P0 Hot Leaf Registry" {
 # 2.0.1 P0 fuzz corpus coverage contract.
 Run-GateStep "P0 Fuzz Corpus Manifest" {
     python tools/check_fuzz_corpus_manifest.py
+}
+
+# 2.0.2 Replay committed P0 corpus seeds through Rust and rollback C++ paths.
+Run-GateStep "P0 Fuzz Corpus Replay" {
+    powershell -ExecutionPolicy Bypass -File tools/run_fuzz_corpus_replay.ps1
 }
 
 # 2.1 Chromium integration readiness scaffold.
