@@ -17,6 +17,13 @@ struct UrlFixture {
     std::vector<uint8_t> data;
 };
 
+struct CssFixture {
+    std::string name;
+    std::vector<uint8_t> data;
+    uint32_t max_tokens;
+    uint32_t max_token_length;
+};
+
 inline std::vector<HeaderFixture> GetHeaderFixtures() {
     auto to_vec = [](const std::string& str) {
         return std::vector<uint8_t>(str.begin(), str.end());
@@ -78,6 +85,44 @@ inline std::vector<UrlFixture> GetUrlFixtures() {
         {
             "URL with invalid UTF-8",
             std::vector<uint8_t>{'h','t','t','p',':','/','/','e','x','a','m','p','l','e','.','c','o','m','/', 0xff, 0xfe}
+        }
+    };
+}
+
+inline std::vector<CssFixture> GetCssFixtures() {
+    auto to_vec = [](const std::string& str) {
+        return std::vector<uint8_t>(str.begin(), str.end());
+    };
+    return {
+        {
+            "Simple rule",
+            to_vec(".box { color: red; }"),
+            64,
+            128
+        },
+        {
+            "Comment and string",
+            to_vec("/* note */ .title { content: \"hi\"; }"),
+            64,
+            128
+        },
+        {
+            "Hash selector",
+            to_vec("#main { display: block; }"),
+            64,
+            128
+        },
+        {
+            "Unclosed string",
+            to_vec(".bad { content: \"oops"),
+            64,
+            128
+        },
+        {
+            "Token limit",
+            to_vec("a b c d e f g h"),
+            3,
+            32
         }
     };
 }

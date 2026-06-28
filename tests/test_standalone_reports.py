@@ -18,8 +18,8 @@ class StandaloneReportsTest(unittest.TestCase):
     def test_repository_fuzz_corpus_report_counts_categories(self) -> None:
         report = build_fuzz_report(REPO_ROOT / "fuzz_corpus_manifest.json")
 
-        self.assertEqual(3, report["component_count"])
-        self.assertGreaterEqual(report["seed_count"], 14)
+        self.assertEqual(4, report["component_count"])
+        self.assertGreaterEqual(report["seed_count"], 19)
         for component in report["components"]:
             self.assertEqual([], component["missing_categories"])
             self.assertGreater(component["seed_count"], 0)
@@ -108,6 +108,7 @@ class StandaloneReportsTest(unittest.TestCase):
         self.assertIn("TestHttpRollback", ROLLBACK_SOURCE)
         self.assertIn("TestUrlRollback", ROLLBACK_SOURCE)
         self.assertIn("TestMojoRollback", ROLLBACK_SOURCE)
+        self.assertIn("TestCssRollback", ROLLBACK_SOURCE)
         self.assertIn("SetRollbackEnabled(true)", ROLLBACK_SOURCE)
 
 

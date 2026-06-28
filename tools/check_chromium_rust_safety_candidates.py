@@ -26,6 +26,7 @@ ALLOWED_TIERS = {
 ALLOWED_STATUSES = {
     "production_candidate",
     "prototype_size_candidate",
+    "prototype_perf_candidate",
     "planned",
     "exploratory",
 }

@@ -1,0 +1,22 @@
+{
+  "benchmarks": [
+    {
+      "name": "Small Stylesheet",
+      "min_speedup": 0.8,
+      "baseline_rust_ns": 80.0,
+      "max_regression_percent": 35.0
+    },
+    {
+      "name": "Large Stylesheet",
+      "min_speedup": 0.8,
+      "baseline_rust_ns": 1200.0,
+      "max_regression_percent": 35.0
+    },
+    {
+      "name": "Malformed Stylesheet",
+      "min_speedup": 0.8,
+      "baseline_rust_ns": 40.0,
+      "max_regression_percent": 35.0
+    }
+  ]
+}

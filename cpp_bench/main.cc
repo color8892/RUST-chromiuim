@@ -11,6 +11,8 @@
 #include "cpp/url_canonicalizer_baseline.h"
 #include "cpp/mojo_validator_adapter.h"
 #include "cpp/mojo_validator_baseline.h"
+#include "cpp/css_tokenizer_adapter.h"
+#include "cpp/css_tokenizer_baseline.h"
 #include "cpp/test_fixtures.h"
 
 // Global checksum to prevent compiler from optimizing away benchmark loops
@@ -157,6 +159,59 @@ BenchmarkResult RunUrlBenchmark(const char* name,
     return BenchmarkResult{name, avg_rust, avg_cpp, ratio};
 }
 
+BenchmarkResult RunCssBenchmark(const char* name,
+                                const uint8_t* data,
+                                size_t len,
+                                size_t iterations,
+                                size_t samples) {
+    using namespace chromium_rust_perf;
+
+    CssTokenizer rust_tokenizer(CssTokenizeOptions{256, 512});
+    CppBaselineCssTokenizer cpp_tokenizer(CssTokenizeOptions{256, 512});
+
+    for (int i = 0; i < 1000; ++i) {
+        auto r1 = rust_tokenizer.Tokenize(data, len);
+        auto r2 = cpp_tokenizer.Tokenize(data, len);
+        Keep(r1.token_count + r2.token_count);
+    }
+
+    std::vector<double> rust_samples;
+    std::vector<double> cpp_samples;
+    rust_samples.reserve(samples);
+    cpp_samples.reserve(samples);
+
+    for (size_t sample = 0; sample < samples; ++sample) {
+        auto start_rust = std::chrono::high_resolution_clock::now();
+        for (size_t i = 0; i < iterations; ++i) {
+            auto r = rust_tokenizer.Tokenize(data, len);
+            Keep(r.token_count);
+        }
+        auto end_rust = std::chrono::high_resolution_clock::now();
+        rust_samples.push_back(
+            std::chrono::duration<double, std::nano>(end_rust - start_rust).count() / iterations);
+
+        auto start_cpp = std::chrono::high_resolution_clock::now();
+        for (size_t i = 0; i < iterations; ++i) {
+            auto r = cpp_tokenizer.Tokenize(data, len);
+            Keep(r.token_count);
+        }
+        auto end_cpp = std::chrono::high_resolution_clock::now();
+        cpp_samples.push_back(
+            std::chrono::duration<double, std::nano>(end_cpp - start_cpp).count() / iterations);
+    }
+
+    const double avg_rust = Best(rust_samples);
+    const double avg_cpp = Best(cpp_samples);
+    const double ratio = avg_cpp / avg_rust;
+
+    std::cout << "| " << std::left << std::setw(20) << name
+              << " | " << std::right << std::setw(12) << std::fixed << std::setprecision(2) << avg_rust << " ns"
+              << " | " << std::right << std::setw(12) << std::fixed << std::setprecision(2) << avg_cpp << " ns"
+              << " | " << std::right << std::setw(10) << std::fixed << std::setprecision(2) << ratio << "x |" << std::endl;
+
+    return BenchmarkResult{name, avg_rust, avg_cpp, ratio};
+}
+
 BenchmarkResult RunMojoBenchmark(const char* name,
                                   const uint8_t* data,
                                   size_t len,
@@ -275,7 +330,7 @@ int main(int argc, char** argv) {
         } else if (std::strcmp(argv[i], "--mode") == 0 && i + 1 < argc) {
             mode = argv[++i];
         } else {
-            std::cerr << "Usage: " << argv[0] << " [--json output.json] [--samples N] [--mode header|url|mojo]" << std::endl;
+            std::cerr << "Usage: " << argv[0] << " [--json output.json] [--samples N] [--mode header|url|mojo|css]" << std::endl;
             return 2;
         }
     }
@@ -303,6 +358,15 @@ int main(int argc, char** argv) {
         results.push_back(RunUrlBenchmark("Small URL", reinterpret_cast<const uint8_t*>(SMALL_URL), std::strlen(SMALL_URL), iterations, samples));
         results.push_back(RunUrlBenchmark("Large URL", reinterpret_cast<const uint8_t*>(LARGE_URL), std::strlen(LARGE_URL), iterations, samples));
         results.push_back(RunUrlBenchmark("Malformed URL", reinterpret_cast<const uint8_t*>(MALFORMED_URL), std::strlen(MALFORMED_URL), iterations, samples));
+    } else if (std::strcmp(mode, "css") == 0) {
+        const char* SMALL_CSS = ".box { color: red; }";
+        const char* LARGE_CSS =
+            ".title, #main, .sidebar { color: rgb(255, 0, 0); content: \"long-value\"; "
+            "background: url(\"/image.png\"); margin: 0; padding: 4px; } /* comment */";
+        const char* MALFORMED_CSS = ".bad { content: \"unterminated";
+        results.push_back(RunCssBenchmark("Small Stylesheet", reinterpret_cast<const uint8_t*>(SMALL_CSS), std::strlen(SMALL_CSS), iterations, samples));
+        results.push_back(RunCssBenchmark("Large Stylesheet", reinterpret_cast<const uint8_t*>(LARGE_CSS), std::strlen(LARGE_CSS), iterations, samples));
+        results.push_back(RunCssBenchmark("Malformed Stylesheet", reinterpret_cast<const uint8_t*>(MALFORMED_CSS), std::strlen(MALFORMED_CSS), iterations, samples));
     } else if (std::strcmp(mode, "mojo") == 0) {
         using namespace chromium_rust_perf;
         std::vector<uint8_t> valid_mojo(40, 0);

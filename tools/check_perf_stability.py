@@ -18,6 +18,7 @@ REQUIRED_BUDGETS = [
     Path("budgets/http_header_scanner_perf.json"),
     Path("budgets/url_canonicalizer_perf.json"),
     Path("budgets/mojo_validator_perf.json"),
+    Path("budgets/css_tokenizer_perf.json"),
 ]
 
 
@@ -37,7 +38,7 @@ def check_perf_stability(runner: Path, min_samples: int) -> list[StabilityViolat
     except OSError as exc:
         return [StabilityViolation("runner read failed", str(exc))]
 
-    for mode in ("header", "url", "mojo"):
+    for mode in ("header", "url", "mojo", "css"):
         pattern = re.compile(rf"--mode\s+{re.escape(mode)}\s+--json\s+\$[A-Za-z]+Report\s+--samples\s+(\d+)")
         match = pattern.search(text)
         if not match:

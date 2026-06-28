@@ -51,6 +51,23 @@
       "benchmark_harness": "cpp_bench/main.cc",
       "fuzz_harness": "cpp_fuzz/main.cc",
       "rollback_symbol": "MojoMessageValidator::SetRollbackEnabled"
+    },
+    {
+      "name": "css_tokenizer",
+      "status": "prototype_perf_candidate",
+      "rust_crate": "rust/hot_leaf/css_tokenizer",
+      "ffi_header": "include/chromium_rust_perf/css_tokenizer_ffi.h",
+      "cpp_adapter": [
+        "cpp/css_tokenizer_adapter.cc",
+        "cpp/css_tokenizer_adapter.h"
+      ],
+      "cpp_baseline": "cpp/css_tokenizer_baseline.h",
+      "perf_budget": "budgets/css_tokenizer_perf.json",
+      "size_artifact": "target/release/libchromium_rust_css_tokenizer.rlib",
+      "differential_harness": "cpp_test/main.cc",
+      "benchmark_harness": "cpp_bench/main.cc",
+      "fuzz_harness": "cpp_fuzz/main.cc",
+      "rollback_symbol": "CssTokenizer::SetRollbackEnabled"
     }
   ]
 }

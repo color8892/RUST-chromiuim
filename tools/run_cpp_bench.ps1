@@ -101,6 +101,7 @@ if ($compiler -eq "clang++") {
         "cpp/http_header_scanner_adapter.cc",
         "cpp/url_canonicalizer_adapter.cc",
         "cpp/mojo_validator_adapter.cc",
+        "cpp/css_tokenizer_adapter.cc",
         $libPath,
         "-o", $outputExe
     )
@@ -124,6 +125,7 @@ if ($compiler -eq "clang++") {
         "cpp/http_header_scanner_adapter.cc",
         "cpp/url_canonicalizer_adapter.cc",
         "cpp/mojo_validator_adapter.cc",
+        "cpp/css_tokenizer_adapter.cc",
         $libPath,
         "/Fe$outputExe"
     )
@@ -171,5 +173,14 @@ if ($Mode -eq "all" -or $Mode -eq "mojo") {
     Write-Host "-> Running Mojo IPC Validator benchmarks..."
     & $outputExe --mode mojo --json $mojoReport --samples 21
     Invoke-NativeChecked { python tools/rust_perf_gate.py --report $mojoReport --budget-file budgets/mojo_validator_perf.json }
+    Write-Host ""
+}
+
+if ($Mode -eq "all" -or $Mode -eq "css") {
+    # 4. CSS Tokenizer Bench
+    $cssReport = "target/bench/css_tokenizer.json"
+    Write-Host "-> Running CSS Tokenizer benchmarks..."
+    & $outputExe --mode css --json $cssReport --samples 21
+    Invoke-NativeChecked { python tools/rust_perf_gate.py --report $cssReport --budget-file budgets/css_tokenizer_perf.json }
     Write-Host ""
 }

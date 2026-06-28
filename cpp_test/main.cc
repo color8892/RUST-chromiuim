@@ -10,6 +10,8 @@
 #include "cpp/url_canonicalizer_baseline.h"
 #include "cpp/mojo_validator_adapter.h"
 #include "cpp/mojo_validator_baseline.h"
+#include "cpp/css_tokenizer_adapter.h"
+#include "cpp/css_tokenizer_baseline.h"
 #include "cpp/test_fixtures.h"
 #include "include/chromium_rust_perf/cxx_bridge.rs.h"
 
@@ -713,6 +715,100 @@ void RunCxxBridgeTests() {
     EXPECT_EQ(std::string(reinterpret_cast<char*>(decode_out), decode_len), "helloAworld", "CxxBridgeDecodeContent");
 }
 
+void AssertCssIdentical(const char* test_name,
+                        const uint8_t* data,
+                        size_t len,
+                        uint32_t max_tokens,
+                        uint32_t max_token_length) {
+    using namespace chromium_rust_perf;
+    CssTokenizer rust_tokenizer(CssTokenizeOptions{max_tokens, max_token_length});
+    CppBaselineCssTokenizer cpp_tokenizer(CssTokenizeOptions{max_tokens, max_token_length});
+
+    CssTokenizeResult rust_res = rust_tokenizer.Tokenize(data, len);
+    CssTokenizeResult cpp_res = cpp_tokenizer.Tokenize(data, len);
+
+    std::string context = std::string(test_name) + " (len=" + std::to_string(len) + ")";
+
+    EXPECT_EQ(static_cast<uint32_t>(rust_res.status), static_cast<uint32_t>(cpp_res.status), context.c_str());
+    EXPECT_EQ(rust_res.token_count, cpp_res.token_count, context.c_str());
+    EXPECT_EQ(rust_res.max_token_length, cpp_res.max_token_length, context.c_str());
+    EXPECT_EQ(rust_res.bytes_consumed, cpp_res.bytes_consumed, context.c_str());
+    EXPECT_EQ(rust_res.ok(), cpp_res.ok(), context.c_str());
+}
+
+void RunCssUnitTests() {
+    using namespace chromium_rust_perf;
+    std::cout << "[CSS Unit Tests] Running tokenizer contract checks..." << std::endl;
+
+    for (const auto& fixture : GetCssFixtures()) {
+        AssertCssIdentical(
+            fixture.name.c_str(),
+            fixture.data.data(),
+            fixture.data.size(),
+            fixture.max_tokens,
+            fixture.max_token_length);
+    }
+
+    CssTokenizer tokenizer(CssTokenizeOptions{64, 128});
+    {
+        const char* css = ".box { color: red; }";
+        auto res = tokenizer.Tokenize(reinterpret_cast<const uint8_t*>(css), std::strlen(css));
+        EXPECT_EQ(static_cast<uint32_t>(res.status), static_cast<uint32_t>(CssTokenizeStatus::kOk), "CssValidStatus");
+        EXPECT_TRUE(res.token_count > 0, "CssTokenCount");
+    }
+    {
+        auto res = tokenizer.Tokenize(nullptr, 4);
+        EXPECT_EQ(static_cast<uint32_t>(res.status), static_cast<uint32_t>(CssTokenizeStatus::kNullInput), "CssNullInput");
+    }
+    {
+        CssTokenizer bad_policy(CssTokenizeOptions{0, 128});
+        auto res = bad_policy.Tokenize(reinterpret_cast<const uint8_t*>("a"), 1);
+        EXPECT_EQ(static_cast<uint32_t>(res.status), static_cast<uint32_t>(CssTokenizeStatus::kInvalidPolicy), "CssInvalidPolicy");
+    }
+}
+
+void RunCssDifferentialTests() {
+    std::cout << "[CSS Differential Tests] Running prefix and mutation scans..." << std::endl;
+
+    const char* base_css = ".title { color: red; content: \"abc\"; } /* end */";
+    size_t total_len = std::strlen(base_css);
+    const uint8_t* base_data = reinterpret_cast<const uint8_t*>(base_css);
+
+    for (size_t len = 0; len <= total_len; ++len) {
+        AssertCssIdentical("CssPrefix", base_data, len, 128, 256);
+    }
+
+    std::vector<uint8_t> mutated(base_data, base_data + total_len);
+    for (size_t i = 0; i < total_len; ++i) {
+        uint8_t original = mutated[i];
+        mutated[i] = 0;
+        AssertCssIdentical("CssMutatedNul", mutated.data(), total_len, 128, 256);
+        mutated[i] = '\\';
+        AssertCssIdentical("CssMutatedEscape", mutated.data(), total_len, 128, 256);
+        mutated[i] = original;
+    }
+}
+
+void TestCssRollbackMechanism() {
+    using namespace chromium_rust_perf;
+    std::cout << "[CSS Rollback Tests] Running feature flag checks..." << std::endl;
+
+    const char* css = ".box { color: red; }";
+    CssTokenizer tokenizer(CssTokenizeOptions{64, 128});
+
+    EXPECT_TRUE(!CssTokenizer::IsRollbackEnabled(), "CssDefaultRollbackFalse");
+    auto res1 = tokenizer.Tokenize(reinterpret_cast<const uint8_t*>(css), std::strlen(css));
+    EXPECT_EQ(static_cast<uint32_t>(res1.status), static_cast<uint32_t>(CssTokenizeStatus::kOk), "CssRollbackFalseOk");
+
+    CssTokenizer::SetRollbackEnabled(true);
+    auto res2 = tokenizer.Tokenize(reinterpret_cast<const uint8_t*>(css), std::strlen(css));
+    EXPECT_EQ(static_cast<uint32_t>(res2.status), static_cast<uint32_t>(CssTokenizeStatus::kOk), "CssRollbackTrueOk");
+
+    CssTokenizer::SetRollbackEnabled(false);
+    auto res3 = tokenizer.Tokenize(reinterpret_cast<const uint8_t*>(css), std::strlen(css));
+    EXPECT_EQ(static_cast<uint32_t>(res3.status), static_cast<uint32_t>(CssTokenizeStatus::kOk), "CssRollbackRestoreOk");
+}
+
 int main() {
     std::cout << "================================================================" << std::endl;
     std::cout << "         Chromium Rust C++ & FFI Differential Tests             " << std::endl;
@@ -729,6 +825,10 @@ int main() {
     RunMojoUnitTests();
     RunMojoDifferentialTests();
     TestMojoRollbackMechanism();
+
+    RunCssUnitTests();
+    RunCssDifferentialTests();
+    TestCssRollbackMechanism();
     
     RunMojoReaderWriterTests();
     RunTaskRunnerBridgeTests();

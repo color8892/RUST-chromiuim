@@ -109,6 +109,44 @@
           "hex": "ffffffff000000000000000000000000"
         }
       ]
+    },
+    {
+      "name": "css_tokenizer",
+      "harness": "cpp_fuzz/main.cc",
+      "required_categories": [
+        "valid",
+        "truncated",
+        "malformed",
+        "escape",
+        "comment"
+      ],
+      "seeds": [
+        {
+          "name": "valid_simple_rule",
+          "category": "valid",
+          "text": ".box { color: red; margin: 0; }"
+        },
+        {
+          "name": "truncated_string",
+          "category": "truncated",
+          "text": ".box { content: \"unterminated"
+        },
+        {
+          "name": "bad_escape",
+          "category": "malformed",
+          "text": ".box { content: \"bad\\"
+        },
+        {
+          "name": "escaped_newline",
+          "category": "escape",
+          "text": ".box { content: \"line\\\nbreak\"; }"
+        },
+        {
+          "name": "unclosed_comment",
+          "category": "comment",
+          "text": "/* comment without end"
+        }
+      ]
     }
   ]
 }

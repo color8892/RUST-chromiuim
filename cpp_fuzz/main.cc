@@ -7,6 +7,7 @@
 #include "cpp/http_header_scanner_adapter.h"
 #include "cpp/url_canonicalizer_adapter.h"
 #include "cpp/mojo_validator_adapter.h"
+#include "cpp/css_tokenizer_adapter.h"
 
 const char* SEED_HEADER = 
     "Host: example.test\r\n"
@@ -17,11 +18,14 @@ const char* SEED_HEADER =
 
 const char* SEED_URL = "https://user:pass@google.com:8080/path/to/file?q=1#hash";
 
+const char* SEED_CSS =
+    ".box { color: red; content: \"escaped\\nvalue\"; margin: 0; } /* comment */";
+
 int main(int argc, char** argv) {
     using namespace chromium_rust_perf;
 
     std::cout << "================================================================" << std::endl;
-    std::cout << "  Chromium Rust Local Mutation Fuzzer (Headers, URLs, & Mojo)   " << std::endl;
+    std::cout << "  Chromium Rust Local Mutation Fuzzer (Headers, URLs, Mojo, CSS) " << std::endl;
     std::cout << "================================================================" << std::endl;
 
     size_t header_seed_len = std::strlen(SEED_HEADER);
@@ -31,6 +35,9 @@ int main(int argc, char** argv) {
     std::vector<uint8_t> url_buf(url_seed_len + 500);
 
     std::vector<uint8_t> mojo_buf(40 + 500);
+
+    size_t css_seed_len = std::strlen(SEED_CSS);
+    std::vector<uint8_t> css_buf(css_seed_len + 500);
 
     MojoFieldConstraint mojo_fields[] = {
         {0, 4, 0},
@@ -58,6 +65,7 @@ int main(int argc, char** argv) {
     size_t header_status_counts[10] = {0};
     size_t url_status_counts[10] = {0};
     size_t mojo_status_counts[10] = {0};
+    size_t css_status_counts[12] = {0};
 
     std::cout << "Starting " << target_runs << " iterations of mutation fuzzing..." << std::endl;
 
@@ -234,6 +242,63 @@ int main(int argc, char** argv) {
             mojo_status_counts[m_status]++;
         }
 
+        // --- 4. Fuzz CSS Tokenizer ---
+        std::memcpy(css_buf.data(), SEED_CSS, css_seed_len);
+        size_t css_len = css_seed_len;
+
+        mutations = (std::rand() % 5) + 1;
+        for (int m = 0; m < mutations; ++m) {
+            int mutation_type = std::rand() % 5;
+            switch (mutation_type) {
+                case 0: {
+                    if (css_len > 0) {
+                        size_t idx = std::rand() % css_len;
+                        css_buf[idx] = static_cast<uint8_t>(std::rand() % 256);
+                    }
+                    break;
+                }
+                case 1: {
+                    css_len = std::rand() % (css_len + 1);
+                    break;
+                }
+                case 2: {
+                    if (css_len > 0) {
+                        size_t idx = std::rand() % css_len;
+                        uint8_t special_chars[] = {0, '"', '\\', '/', '*', '{', '}', ':', ';'};
+                        css_buf[idx] = special_chars[std::rand() % 9];
+                    }
+                    break;
+                }
+                case 3: {
+                    size_t append_len = std::rand() % 50;
+                    if (css_len + append_len <= css_buf.size()) {
+                        for (size_t i = 0; i < append_len; ++i) {
+                            css_buf[css_len + i] = static_cast<uint8_t>(std::rand() % 256);
+                        }
+                        css_len += append_len;
+                    }
+                    break;
+                }
+                case 4: {
+                    if (css_len > 1) {
+                        size_t idx = std::rand() % (css_len - 1);
+                        css_buf[idx] = '/';
+                        css_buf[idx + 1] = '*';
+                    }
+                    break;
+                }
+            }
+        }
+
+        uint32_t max_tokens = (std::rand() % 100 == 0) ? 0 : (std::rand() % 200) + 1;
+        uint32_t max_token_length = (std::rand() % 100 == 0) ? 0 : (std::rand() % 500) + 1;
+        CssTokenizer css_tokenizer(CssTokenizeOptions{max_tokens, max_token_length});
+        CssTokenizeResult css_res = css_tokenizer.Tokenize(css_buf.data(), css_len);
+        uint32_t c_status = static_cast<uint32_t>(css_res.status);
+        if (c_status < 12) {
+            css_status_counts[c_status]++;
+        }
+
         // Print progress
         if (run % print_interval == 0) {
             std::cout << "  -> Progress: " << std::right << std::setw(9) << run << " runs completed." << std::endl;
@@ -293,6 +358,25 @@ int main(int argc, char** argv) {
     };
     for (int i = 0; i < 8; ++i) {
         std::cout << "  - " << mojo_status_names[i] << ": " << mojo_status_counts[i] << std::endl;
+    }
+
+    std::cout << "\nCSS Tokenizer Status Statistics:" << std::endl;
+    const char* css_status_names[] = {
+        "kOk                 ",
+        "kIncomplete         ",
+        "kNullInput          ",
+        "kLengthOverflow     ",
+        "kOutputNull         ",
+        "kInvalidByte        ",
+        "kBadEscape          ",
+        "kUnclosedComment    ",
+        "kUnclosedString     ",
+        "kTooManyTokens      ",
+        "kTokenTooLong       ",
+        "kInvalidPolicy      "
+    };
+    for (int i = 0; i < 12; ++i) {
+        std::cout << "  - " << css_status_names[i] << ": " << css_status_counts[i] << std::endl;
     }
     std::cout << "================================================================" << std::endl;
 

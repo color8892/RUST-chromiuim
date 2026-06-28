@@ -110,12 +110,14 @@
       "memory_safety_rationale": "Stylesheet and selector parsing have a long history of memory safety bugs while still behaving like bounded parser leaves.",
       "typical_bug_classes": ["tokenizer OOB", "escaped sequence handling", "selector parse confusion"],
       "feasibility": "medium",
-      "status": "planned",
-      "p0_component": null,
+      "status": "prototype_perf_candidate",
+      "p0_component": "css_tokenizer",
       "next_chromium_task": "chromium-real-callsite-wiring",
       "roadmap_matrix_area": "Blink LayoutNG",
       "do_not_expand_into": ["layout object graph", "style recalc orchestration", "Oilpan-managed DOM"],
       "evidence": [
+        "rust/hot_leaf/css_tokenizer/src/lib.rs",
+        "p0_hot_leaf_registry.json",
         "docs/chromium_integration_roadmap.md",
         "docs/chromium_rust_perf_size_policy.md"
       ]

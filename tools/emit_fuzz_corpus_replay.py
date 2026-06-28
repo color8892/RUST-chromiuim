@@ -69,6 +69,7 @@ def emit_replay_source(manifest_path: Path) -> str:
 #include "cpp/http_header_scanner_adapter.h"
 #include "cpp/url_canonicalizer_adapter.h"
 #include "cpp/mojo_validator_adapter.h"
+#include "cpp/css_tokenizer_adapter.h"
 
 namespace {{
 
@@ -156,6 +157,22 @@ bool ReplayMojoSeed(const Seed& seed) {{
   return rust.status == cpp.status && rust.error_offset == cpp.error_offset;
 }}
 
+bool ReplayCssSeed(const Seed& seed) {{
+  using namespace chromium_rust_perf;
+  CssTokenizer tokenizer(CssTokenizeOptions{{256, 512}});
+
+  CssTokenizer::SetRollbackEnabled(false);
+  CssTokenizeResult rust = tokenizer.Tokenize(seed.data, seed.len);
+  CssTokenizer::SetRollbackEnabled(true);
+  CssTokenizeResult cpp = tokenizer.Tokenize(seed.data, seed.len);
+  CssTokenizer::SetRollbackEnabled(false);
+
+  return rust.status == cpp.status &&
+         rust.token_count == cpp.token_count &&
+         rust.max_token_length == cpp.max_token_length &&
+         rust.bytes_consumed == cpp.bytes_consumed;
+}}
+
 bool ReplaySeed(const Seed& seed) {{
   if (std::strcmp(seed.component, "http_header_scanner") == 0) {{
     return ReplayHttpSeed(seed);
@@ -165,6 +182,9 @@ bool ReplaySeed(const Seed& seed) {{
   }}
   if (std::strcmp(seed.component, "mojo_validator") == 0) {{
     return ReplayMojoSeed(seed);
+  }}
+  if (std::strcmp(seed.component, "css_tokenizer") == 0) {{
+    return ReplayCssSeed(seed);
   }}
   std::cerr << "Unknown component: " << seed.component << std::endl;
   return false;

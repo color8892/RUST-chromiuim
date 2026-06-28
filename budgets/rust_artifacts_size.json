@@ -2,9 +2,9 @@
   "artifacts": [
     {
       "path": "target/release/chromium_rust_perf_ffi_static.lib",
-      "baseline_bytes": 3058340,
+      "baseline_bytes": 4446344,
       "max_growth_bytes": 16384,
-      "max_bytes": 3074724
+      "max_bytes": 4462728
     },
     {
       "path": "target/release/libchromium_rust_http_header_scanner.rlib",
@@ -23,6 +23,12 @@
       "baseline_bytes": 27704,
       "max_growth_bytes": 2048,
       "max_bytes": 29752
+    },
+    {
+      "path": "target/release/libchromium_rust_css_tokenizer.rlib",
+      "baseline_bytes": 26022,
+      "max_growth_bytes": 2048,
+      "max_bytes": 28070
     }
   ]
 }
