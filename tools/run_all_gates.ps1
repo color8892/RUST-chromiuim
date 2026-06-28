@@ -46,6 +46,7 @@ Run-GateStep "Python Gate Tools CLI Verification" {
     python tools/check_perf_stability.py --help > $null
     python tools/check_chromium_integration_checklist.py --help > $null
     python tools/check_chromium_import_consistency.py --help > $null
+    python tools/emit_chromium_cl_handoff.py --help > $null
 }
 
 # 2.0 P0 component registry.
@@ -75,6 +76,7 @@ Run-GateStep "P0 Standalone Reports" {
     python tools/emit_p0_artifact_summary.py
     python tools/emit_chromium_import_report.py
     python tools/check_chromium_integration_checklist.py
+    python tools/emit_chromium_cl_handoff.py
 }
 
 # 2.0.5 Benchmark stability guard.

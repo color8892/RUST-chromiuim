@@ -74,6 +74,7 @@ Validate it with:
 ```powershell
 python tools/check_chromium_integration_checklist.py
 python tools/check_chromium_import_consistency.py
+python tools/emit_chromium_cl_handoff.py
 ```
 
 Dry run:
