@@ -9,6 +9,7 @@
   ],
   "files": [
     "BUILD.gn",
+    "chromium_integration_checklist.json",
     "Cargo.toml",
     "Cargo.lock",
     "README.md",

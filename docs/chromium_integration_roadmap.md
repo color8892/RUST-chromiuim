@@ -73,6 +73,7 @@ Validate it with:
 
 ```powershell
 python tools/check_chromium_integration_checklist.py
+python tools/check_chromium_import_consistency.py
 ```
 
 Dry run:

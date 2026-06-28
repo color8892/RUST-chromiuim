@@ -45,6 +45,7 @@ Run-GateStep "Python Gate Tools CLI Verification" {
     python tools/emit_chromium_import_report.py --help > $null
     python tools/check_perf_stability.py --help > $null
     python tools/check_chromium_integration_checklist.py --help > $null
+    python tools/check_chromium_import_consistency.py --help > $null
 }
 
 # 2.0 P0 component registry.
@@ -69,6 +70,7 @@ Run-GateStep "P0 Runtime Rollback Gate" {
 
 # 2.0.4 Standalone reporting artifacts for review and import planning.
 Run-GateStep "P0 Standalone Reports" {
+    python tools/check_chromium_import_consistency.py
     python tools/emit_fuzz_corpus_report.py
     python tools/emit_p0_artifact_summary.py
     python tools/emit_chromium_import_report.py
