@@ -55,6 +55,7 @@ def build_handoff(repo_root: Path) -> dict[str, Any]:
             "python tools/check_chromium_integration_checklist.py",
             "python tools/check_chromium_checkout_preflight.py",
             "python tools/check_chromium_next_tasks.py",
+            "python tools/select_chromium_next_task.py",
         ],
         "chromium_checkout_commands": [
             "python tools/check_chromium_checkout_preflight.py --chromium-root C:\\path\\to\\chromium\\src",

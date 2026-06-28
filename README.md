@@ -65,6 +65,7 @@ python tools/check_chromium_checkout_preflight.py --chromium-root C:\path\to\chr
 python tools/emit_standalone_readiness_report.py
 python tools/emit_reports_manifest.py
 python tools/check_chromium_next_tasks.py
+python tools/select_chromium_next_task.py
 ```
 
 Prepare a real Chromium checkout import:

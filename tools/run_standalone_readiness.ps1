@@ -31,6 +31,7 @@ Invoke-NativeChecked { python tools/check_chromium_import_consistency.py }
 Invoke-NativeChecked { python tools/check_chromium_integration_checklist.py }
 Invoke-NativeChecked { python tools/check_chromium_checkout_preflight.py }
 Invoke-NativeChecked { python tools/check_chromium_next_tasks.py }
+Invoke-NativeChecked { python tools/select_chromium_next_task.py }
 
 Write-Host ">>> Performance stability settings"
 Invoke-NativeChecked { python tools/check_perf_stability.py }
