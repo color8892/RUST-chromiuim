@@ -39,6 +39,11 @@ Run-GateStep "Python Gate Tools CLI Verification" {
     python tools/check_p0_hot_leaf_registry.py --help > $null
     python tools/check_fuzz_corpus_manifest.py --help > $null
     python tools/emit_fuzz_corpus_replay.py --help > $null
+    python tools/emit_rollback_gate.py --help > $null
+    python tools/emit_fuzz_corpus_report.py --help > $null
+    python tools/emit_p0_artifact_summary.py --help > $null
+    python tools/emit_chromium_import_report.py --help > $null
+    python tools/check_perf_stability.py --help > $null
 }
 
 # 2.0 P0 component registry.
@@ -54,6 +59,23 @@ Run-GateStep "P0 Fuzz Corpus Manifest" {
 # 2.0.2 Replay committed P0 corpus seeds through Rust and rollback C++ paths.
 Run-GateStep "P0 Fuzz Corpus Replay" {
     powershell -ExecutionPolicy Bypass -File tools/run_fuzz_corpus_replay.ps1
+}
+
+# 2.0.3 Runtime rollback contract for every P0 adapter.
+Run-GateStep "P0 Runtime Rollback Gate" {
+    powershell -ExecutionPolicy Bypass -File tools/run_rollback_gate.ps1
+}
+
+# 2.0.4 Standalone reporting artifacts for review and import planning.
+Run-GateStep "P0 Standalone Reports" {
+    python tools/emit_fuzz_corpus_report.py
+    python tools/emit_p0_artifact_summary.py
+    python tools/emit_chromium_import_report.py
+}
+
+# 2.0.5 Benchmark stability guard.
+Run-GateStep "P0 Perf Stability Settings" {
+    python tools/check_perf_stability.py
 }
 
 # 2.1 Chromium integration readiness scaffold.

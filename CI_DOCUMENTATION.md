@@ -27,6 +27,7 @@ powershell -ExecutionPolicy Bypass -File tools/run_all_gates.ps1
 4. **Fuzz Smoke Verification**:
    - Run `python tools/check_fuzz_corpus_manifest.py` to ensure every P0 component has valid, truncated, malformed, and component-specific fuzz seed coverage.
    - Run `tools/run_fuzz_corpus_replay.ps1` to replay committed seeds through both Rust FFI and rollback C++ paths.
+   - Run `tools/run_rollback_gate.ps1` to verify every P0 adapter can switch Rust -> C++ rollback -> Rust at runtime.
    - Run `tools/run_local_fuzz.ps1 --runs 10000` to ensure no panics or segmentation faults are introduced in FFI interfaces.
 
 ---
@@ -41,6 +42,9 @@ The repository enforces the following automated quality gates:
 | **P0 Hot Leaf Registry** | `check_p0_hot_leaf_registry.py` | Ensures every P0 leaf has Rust source, C++ adapter, baseline, budgets, rollback, fuzz, benchmark, and differential coverage. |
 | **P0 Fuzz Corpus Manifest** | `check_fuzz_corpus_manifest.py` | Ensures every P0 leaf has bounded seed data for required valid, malformed, truncated, and component-specific fuzz categories. |
 | **P0 Fuzz Corpus Replay** | `run_fuzz_corpus_replay.ps1` | Generates and runs a C++ replay harness so committed seeds execute through Rust FFI and rollback C++ paths. |
+| **P0 Runtime Rollback Gate** | `run_rollback_gate.ps1` | Generates and runs a C++ harness proving each P0 adapter can toggle Rust, C++ rollback, and Rust restore. |
+| **P0 Standalone Reports** | `emit_fuzz_corpus_report.py`, `emit_p0_artifact_summary.py`, `emit_chromium_import_report.py` | Writes reviewable JSON reports under `target/reports/` for corpus coverage, artifacts, and Chromium import dry-run planning. |
+| **P0 Perf Stability Settings** | `check_perf_stability.py` | Prevents benchmark gates from silently dropping below the required sample count or losing perf budgets. |
 | **Source / Artifact Guard** | `rust_hot_leaf_guard.py` | Enforces `#![no_std]` rules and ensures no disallowed external crate imports. |
 | **Binary Size Gate** | `rust_size_gate.py` | Ensures that Rust static libraries and individual rlib sizes stay within strict bounds. |
 | **C++ Differential Tests** | `run_cpp_tests.ps1` | Runs 15,000+ prefix and mutation test cases, comparing C++ and Rust outputs. |
