@@ -49,6 +49,7 @@ def build_handoff(repo_root: Path) -> dict[str, Any]:
         ],
         "local_preflight_commands": [
             "python -m unittest discover -s tests",
+            "powershell -ExecutionPolicy Bypass -File tools/run_standalone_readiness.ps1",
             "powershell -ExecutionPolicy Bypass -File tools/run_all_gates.ps1",
             "python tools/check_chromium_import_consistency.py",
             "python tools/check_chromium_integration_checklist.py",

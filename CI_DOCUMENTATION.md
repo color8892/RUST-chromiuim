@@ -14,6 +14,11 @@ Run all gates in one command:
 powershell -ExecutionPolicy Bypass -File tools/run_all_gates.ps1
 ```
 
+Run the lightweight standalone readiness suite:
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/run_standalone_readiness.ps1
+```
+
 ### Manual Checklist
 1. **Rust Verification**:
    - Run `cargo test --workspace` to ensure all Rust units, integration tests, and doc tests pass.

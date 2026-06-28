@@ -33,6 +33,8 @@ Run checks:
 ```powershell
 cargo test
 python -m unittest discover -s tests
+# Quick standalone readiness:
+powershell -ExecutionPolicy Bypass -File tools/run_standalone_readiness.ps1
 python tools/check_p0_hot_leaf_registry.py
 python tools/rust_hot_leaf_guard.py rust/hot_leaf rust/ffi_static
 powershell -ExecutionPolicy Bypass -File tools/run_size_gate.ps1

@@ -72,6 +72,7 @@ Chromium-checkout work is tracked in `chromium_integration_checklist.json`.
 Validate it with:
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File tools/run_standalone_readiness.ps1
 python tools/check_chromium_integration_checklist.py
 python tools/check_chromium_import_consistency.py
 python tools/emit_chromium_cl_handoff.py
