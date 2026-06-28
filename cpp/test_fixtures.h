@@ -24,6 +24,14 @@ struct CssFixture {
     uint32_t max_token_length;
 };
 
+struct CookieFixture {
+    std::string name;
+    std::vector<uint8_t> data;
+    uint32_t max_attributes;
+    uint32_t max_attr_name_length;
+    uint32_t max_attr_value_length;
+};
+
 inline std::vector<HeaderFixture> GetHeaderFixtures() {
     auto to_vec = [](const std::string& str) {
         return std::vector<uint8_t>(str.begin(), str.end());
@@ -123,6 +131,49 @@ inline std::vector<CssFixture> GetCssFixtures() {
             to_vec("a b c d e f g h"),
             3,
             32
+        }
+    };
+}
+
+inline std::vector<CookieFixture> GetCookieFixtures() {
+    auto to_vec = [](const std::string& str) {
+        return std::vector<uint8_t>(str.begin(), str.end());
+    };
+    return {
+        {
+            "Session cookie",
+            to_vec("session_id=abc123; Path=/; Secure; HttpOnly; SameSite=Strict"),
+            16,
+            64,
+            256
+        },
+        {
+            "Quoted value",
+            to_vec("token=\"quoted value\"; Path=/"),
+            16,
+            64,
+            256
+        },
+        {
+            "Name only",
+            to_vec("flag"),
+            16,
+            64,
+            256
+        },
+        {
+            "Unclosed quote",
+            to_vec("name=\"oops"),
+            16,
+            64,
+            256
+        },
+        {
+            "Attribute limit",
+            to_vec("a=1; b=2; c=3; d=4"),
+            2,
+            64,
+            256
         }
     };
 }

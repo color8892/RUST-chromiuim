@@ -16,6 +16,8 @@ source_set("rust_perf_adapters") {
     "cpp/mojo_validator_adapter.h",
     "cpp/css_tokenizer_adapter.cc",
     "cpp/css_tokenizer_adapter.h",
+    "cpp/cookie_canonicalizer_adapter.cc",
+    "cpp/cookie_canonicalizer_adapter.h",
   ]
   
   public = [
@@ -23,10 +25,12 @@ source_set("rust_perf_adapters") {
     "cpp/url_canonicalizer_adapter.h",
     "cpp/mojo_validator_adapter.h",
     "cpp/css_tokenizer_adapter.h",
+    "cpp/cookie_canonicalizer_adapter.h",
     "include/chromium_rust_perf/http_header_scanner_ffi.h",
     "include/chromium_rust_perf/url_canonicalizer_ffi.h",
     "include/chromium_rust_perf/mojo_validator_ffi.h",
     "include/chromium_rust_perf/css_tokenizer_ffi.h",
+    "include/chromium_rust_perf/cookie_canonicalizer_ffi.h",
   ]
 
   deps = [
@@ -48,6 +52,7 @@ rust_static_library("chromium_rust_perf_bridge") {
     ":chromium_rust_url_canonicalizer",
     ":chromium_rust_mojo_validator",
     ":chromium_rust_css_tokenizer",
+    ":chromium_rust_cookie_canonicalizer",
   ]
 }
 
@@ -82,6 +87,13 @@ rust_library("chromium_rust_css_tokenizer") {
   ]
 }
 
+rust_library("chromium_rust_cookie_canonicalizer") {
+  crate_root = "rust/hot_leaf/cookie_canonicalizer/src/lib.rs"
+  sources = [
+    "rust/hot_leaf/cookie_canonicalizer/src/lib.rs",
+  ]
+}
+
 # Unit tests target for Chromium's test suite
 source_set("rust_perf_unittests") {
   testonly = true
@@ -90,6 +102,7 @@ source_set("rust_perf_unittests") {
     "cpp/url_canonicalizer_baseline.h",
     "cpp/mojo_validator_baseline.h",
     "cpp/css_tokenizer_baseline.h",
+    "cpp/cookie_canonicalizer_baseline.h",
   ]
   deps = [
     ":rust_perf_adapters",

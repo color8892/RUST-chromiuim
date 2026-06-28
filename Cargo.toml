@@ -4,13 +4,15 @@ members = [
     "rust/hot_leaf/url_canonicalizer",
     "rust/hot_leaf/mojo_validator",
     "rust/hot_leaf/css_tokenizer",
+    "rust/hot_leaf/cookie_canonicalizer",
     "rust/ffi_static"
 ]
 default-members = [
     "rust/hot_leaf/http_header_scanner",
     "rust/hot_leaf/url_canonicalizer",
     "rust/hot_leaf/mojo_validator",
-    "rust/hot_leaf/css_tokenizer"
+    "rust/hot_leaf/css_tokenizer",
+    "rust/hot_leaf/cookie_canonicalizer"
 ]
 resolver = "2"
 

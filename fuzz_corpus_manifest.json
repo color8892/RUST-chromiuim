@@ -147,6 +147,44 @@
           "text": "/* comment without end"
         }
       ]
+    },
+    {
+      "name": "cookie_canonicalizer",
+      "harness": "cpp_fuzz/main.cc",
+      "required_categories": [
+        "valid",
+        "truncated",
+        "malformed",
+        "quoted",
+        "samesite"
+      ],
+      "seeds": [
+        {
+          "name": "valid_session_cookie",
+          "category": "valid",
+          "text": "session_id=abc123; Path=/; Domain=example.test; Secure; HttpOnly; SameSite=Strict"
+        },
+        {
+          "name": "truncated_attribute",
+          "category": "truncated",
+          "text": "session_id=abc; Path"
+        },
+        {
+          "name": "unclosed_quoted_value",
+          "category": "malformed",
+          "text": "name=\"unterminated"
+        },
+        {
+          "name": "quoted_value",
+          "category": "quoted",
+          "text": "token=\"quoted value\"; Path=/"
+        },
+        {
+          "name": "invalid_samesite",
+          "category": "samesite",
+          "text": "name=value; SameSite=Bad"
+        }
+      ]
     }
   ]
 }

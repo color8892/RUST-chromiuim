@@ -23,6 +23,7 @@ pub mod cxx_bridge;
 pub use chromium_rust_http_header_scanner::ChromiumRustHttpHeaderScanResult;
 pub use chromium_rust_url_canonicalizer::ChromiumRustUrlParseResult;
 pub use chromium_rust_css_tokenizer::ChromiumRustCssTokenizeResult;
+pub use chromium_rust_cookie_canonicalizer::ChromiumRustCookieCanonicalizeResult;
 
 #[cfg(all(
     not(test),
@@ -143,6 +144,31 @@ pub unsafe extern "C" fn chromium_rust_css_tokenize_v1(
             len,
             max_tokens,
             max_token_length,
+            out,
+        )
+    }
+}
+
+/// # Safety
+///
+/// `out` must point to a writable `ChromiumRustCookieCanonicalizeResult` for the duration of this call.
+/// If `len` is non-zero, `data` must point to `len` readable bytes for the duration of this call.
+#[no_mangle]
+pub unsafe extern "C" fn chromium_rust_cookie_canonicalize_v1(
+    data: *const u8,
+    len: usize,
+    max_attributes: u32,
+    max_attr_name_length: u32,
+    max_attr_value_length: u32,
+    out: *mut ChromiumRustCookieCanonicalizeResult,
+) -> u32 {
+    unsafe {
+        chromium_rust_cookie_canonicalizer::chromium_rust_cookie_canonicalize_v1_internal(
+            data,
+            len,
+            max_attributes,
+            max_attr_name_length,
+            max_attr_value_length,
             out,
         )
     }

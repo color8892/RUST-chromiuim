@@ -68,6 +68,23 @@
       "benchmark_harness": "cpp_bench/main.cc",
       "fuzz_harness": "cpp_fuzz/main.cc",
       "rollback_symbol": "CssTokenizer::SetRollbackEnabled"
+    },
+    {
+      "name": "cookie_canonicalizer",
+      "status": "prototype_perf_candidate",
+      "rust_crate": "rust/hot_leaf/cookie_canonicalizer",
+      "ffi_header": "include/chromium_rust_perf/cookie_canonicalizer_ffi.h",
+      "cpp_adapter": [
+        "cpp/cookie_canonicalizer_adapter.cc",
+        "cpp/cookie_canonicalizer_adapter.h"
+      ],
+      "cpp_baseline": "cpp/cookie_canonicalizer_baseline.h",
+      "perf_budget": "budgets/cookie_canonicalizer_perf.json",
+      "size_artifact": "target/release/libchromium_rust_cookie_canonicalizer.rlib",
+      "differential_harness": "cpp_test/main.cc",
+      "benchmark_harness": "cpp_bench/main.cc",
+      "fuzz_harness": "cpp_fuzz/main.cc",
+      "rollback_symbol": "CookieCanonicalizer::SetRollbackEnabled"
     }
   ]
 }

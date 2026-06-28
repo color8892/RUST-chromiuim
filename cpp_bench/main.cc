@@ -13,6 +13,8 @@
 #include "cpp/mojo_validator_baseline.h"
 #include "cpp/css_tokenizer_adapter.h"
 #include "cpp/css_tokenizer_baseline.h"
+#include "cpp/cookie_canonicalizer_adapter.h"
+#include "cpp/cookie_canonicalizer_baseline.h"
 #include "cpp/test_fixtures.h"
 
 // Global checksum to prevent compiler from optimizing away benchmark loops
@@ -212,6 +214,59 @@ BenchmarkResult RunCssBenchmark(const char* name,
     return BenchmarkResult{name, avg_rust, avg_cpp, ratio};
 }
 
+BenchmarkResult RunCookieBenchmark(const char* name,
+                                   const uint8_t* data,
+                                   size_t len,
+                                   size_t iterations,
+                                   size_t samples) {
+    using namespace chromium_rust_perf;
+
+    CookieCanonicalizer rust_canonicalizer(CookieCanonicalizeOptions{16, 64, 256});
+    CppBaselineCookieCanonicalizer cpp_canonicalizer(CookieCanonicalizeOptions{16, 64, 256});
+
+    for (int i = 0; i < 1000; ++i) {
+        auto r1 = rust_canonicalizer.Canonicalize(data, len);
+        auto r2 = cpp_canonicalizer.Canonicalize(data, len);
+        Keep(r1.attribute_count + r2.attribute_count);
+    }
+
+    std::vector<double> rust_samples;
+    std::vector<double> cpp_samples;
+    rust_samples.reserve(samples);
+    cpp_samples.reserve(samples);
+
+    for (size_t sample = 0; sample < samples; ++sample) {
+        auto start_rust = std::chrono::high_resolution_clock::now();
+        for (size_t i = 0; i < iterations; ++i) {
+            auto r = rust_canonicalizer.Canonicalize(data, len);
+            Keep(r.attribute_count);
+        }
+        auto end_rust = std::chrono::high_resolution_clock::now();
+        rust_samples.push_back(
+            std::chrono::duration<double, std::nano>(end_rust - start_rust).count() / iterations);
+
+        auto start_cpp = std::chrono::high_resolution_clock::now();
+        for (size_t i = 0; i < iterations; ++i) {
+            auto r = cpp_canonicalizer.Canonicalize(data, len);
+            Keep(r.attribute_count);
+        }
+        auto end_cpp = std::chrono::high_resolution_clock::now();
+        cpp_samples.push_back(
+            std::chrono::duration<double, std::nano>(end_cpp - start_cpp).count() / iterations);
+    }
+
+    const double avg_rust = Best(rust_samples);
+    const double avg_cpp = Best(cpp_samples);
+    const double ratio = avg_cpp / avg_rust;
+
+    std::cout << "| " << std::left << std::setw(20) << name
+              << " | " << std::right << std::setw(12) << std::fixed << std::setprecision(2) << avg_rust << " ns"
+              << " | " << std::right << std::setw(12) << std::fixed << std::setprecision(2) << avg_cpp << " ns"
+              << " | " << std::right << std::setw(10) << std::fixed << std::setprecision(2) << ratio << "x |" << std::endl;
+
+    return BenchmarkResult{name, avg_rust, avg_cpp, ratio};
+}
+
 BenchmarkResult RunMojoBenchmark(const char* name,
                                   const uint8_t* data,
                                   size_t len,
@@ -330,7 +385,7 @@ int main(int argc, char** argv) {
         } else if (std::strcmp(argv[i], "--mode") == 0 && i + 1 < argc) {
             mode = argv[++i];
         } else {
-            std::cerr << "Usage: " << argv[0] << " [--json output.json] [--samples N] [--mode header|url|mojo|css]" << std::endl;
+            std::cerr << "Usage: " << argv[0] << " [--json output.json] [--samples N] [--mode header|url|mojo|css|cookie]" << std::endl;
             return 2;
         }
     }
@@ -367,6 +422,15 @@ int main(int argc, char** argv) {
         results.push_back(RunCssBenchmark("Small Stylesheet", reinterpret_cast<const uint8_t*>(SMALL_CSS), std::strlen(SMALL_CSS), iterations, samples));
         results.push_back(RunCssBenchmark("Large Stylesheet", reinterpret_cast<const uint8_t*>(LARGE_CSS), std::strlen(LARGE_CSS), iterations, samples));
         results.push_back(RunCssBenchmark("Malformed Stylesheet", reinterpret_cast<const uint8_t*>(MALFORMED_CSS), std::strlen(MALFORMED_CSS), iterations, samples));
+    } else if (std::strcmp(mode, "cookie") == 0) {
+        const char* SMALL_COOKIE = "session_id=abc; Path=/";
+        const char* LARGE_COOKIE =
+            "session_id=abc123xyz7890; Path=/; Domain=example.test; Secure; HttpOnly; "
+            "SameSite=Strict; Max-Age=3600";
+        const char* MALFORMED_COOKIE = "name=\"unterminated";
+        results.push_back(RunCookieBenchmark("Small Cookie", reinterpret_cast<const uint8_t*>(SMALL_COOKIE), std::strlen(SMALL_COOKIE), iterations, samples));
+        results.push_back(RunCookieBenchmark("Large Cookie", reinterpret_cast<const uint8_t*>(LARGE_COOKIE), std::strlen(LARGE_COOKIE), iterations, samples));
+        results.push_back(RunCookieBenchmark("Malformed Cookie", reinterpret_cast<const uint8_t*>(MALFORMED_COOKIE), std::strlen(MALFORMED_COOKIE), iterations, samples));
     } else if (std::strcmp(mode, "mojo") == 0) {
         using namespace chromium_rust_perf;
         std::vector<uint8_t> valid_mojo(40, 0);

@@ -8,6 +8,7 @@
 #include "cpp/url_canonicalizer_adapter.h"
 #include "cpp/mojo_validator_adapter.h"
 #include "cpp/css_tokenizer_adapter.h"
+#include "cpp/cookie_canonicalizer_adapter.h"
 
 const char* SEED_HEADER = 
     "Host: example.test\r\n"
@@ -21,11 +22,14 @@ const char* SEED_URL = "https://user:pass@google.com:8080/path/to/file?q=1#hash"
 const char* SEED_CSS =
     ".box { color: red; content: \"escaped\\nvalue\"; margin: 0; } /* comment */";
 
+const char* SEED_COOKIE =
+    "session_id=abc123; Path=/; Domain=example.test; Secure; HttpOnly; SameSite=Strict";
+
 int main(int argc, char** argv) {
     using namespace chromium_rust_perf;
 
     std::cout << "================================================================" << std::endl;
-    std::cout << "  Chromium Rust Local Mutation Fuzzer (Headers, URLs, Mojo, CSS) " << std::endl;
+    std::cout << "  Chromium Rust Local Mutation Fuzzer (Headers, URLs, Mojo, CSS, Cookie)" << std::endl;
     std::cout << "================================================================" << std::endl;
 
     size_t header_seed_len = std::strlen(SEED_HEADER);
@@ -38,6 +42,9 @@ int main(int argc, char** argv) {
 
     size_t css_seed_len = std::strlen(SEED_CSS);
     std::vector<uint8_t> css_buf(css_seed_len + 500);
+
+    size_t cookie_seed_len = std::strlen(SEED_COOKIE);
+    std::vector<uint8_t> cookie_buf(cookie_seed_len + 500);
 
     MojoFieldConstraint mojo_fields[] = {
         {0, 4, 0},
@@ -66,6 +73,7 @@ int main(int argc, char** argv) {
     size_t url_status_counts[10] = {0};
     size_t mojo_status_counts[10] = {0};
     size_t css_status_counts[12] = {0};
+    size_t cookie_status_counts[14] = {0};
 
     std::cout << "Starting " << target_runs << " iterations of mutation fuzzing..." << std::endl;
 
@@ -299,6 +307,64 @@ int main(int argc, char** argv) {
             css_status_counts[c_status]++;
         }
 
+        // --- 5. Fuzz Cookie Canonicalizer ---
+        std::memcpy(cookie_buf.data(), SEED_COOKIE, cookie_seed_len);
+        size_t cookie_len = cookie_seed_len;
+
+        mutations = (std::rand() % 5) + 1;
+        for (int m = 0; m < mutations; ++m) {
+            int mutation_type = std::rand() % 5;
+            switch (mutation_type) {
+                case 0: {
+                    if (cookie_len > 0) {
+                        size_t idx = std::rand() % cookie_len;
+                        cookie_buf[idx] = static_cast<uint8_t>(std::rand() % 256);
+                    }
+                    break;
+                }
+                case 1: {
+                    cookie_len = std::rand() % (cookie_len + 1);
+                    break;
+                }
+                case 2: {
+                    if (cookie_len > 0) {
+                        size_t idx = std::rand() % cookie_len;
+                        uint8_t special_chars[] = {0, ';', '=', '"', ' ', '\t', '/', ':'};
+                        cookie_buf[idx] = special_chars[std::rand() % 7];
+                    }
+                    break;
+                }
+                case 3: {
+                    size_t append_len = std::rand() % 50;
+                    if (cookie_len + append_len <= cookie_buf.size()) {
+                        for (size_t i = 0; i < append_len; ++i) {
+                            cookie_buf[cookie_len + i] = static_cast<uint8_t>(std::rand() % 256);
+                        }
+                        cookie_len += append_len;
+                    }
+                    break;
+                }
+                case 4: {
+                    if (cookie_len > 7) {
+                        size_t idx = std::rand() % (cookie_len - 6);
+                        std::memcpy(cookie_buf.data() + idx, "SameSite", 8);
+                    }
+                    break;
+                }
+            }
+        }
+
+        uint32_t max_attributes = (std::rand() % 100 == 0) ? 0 : (std::rand() % 32) + 1;
+        uint32_t max_attr_name_length = (std::rand() % 100 == 0) ? 0 : (std::rand() % 128) + 1;
+        uint32_t max_attr_value_length = (std::rand() % 100 == 0) ? 0 : (std::rand() % 256) + 1;
+        CookieCanonicalizer cookie_canonicalizer(
+            CookieCanonicalizeOptions{max_attributes, max_attr_name_length, max_attr_value_length});
+        CookieCanonicalizeResult cookie_res = cookie_canonicalizer.Canonicalize(cookie_buf.data(), cookie_len);
+        uint32_t ck_status = static_cast<uint32_t>(cookie_res.status);
+        if (ck_status < 14) {
+            cookie_status_counts[ck_status]++;
+        }
+
         // Print progress
         if (run % print_interval == 0) {
             std::cout << "  -> Progress: " << std::right << std::setw(9) << run << " runs completed." << std::endl;
@@ -377,6 +443,27 @@ int main(int argc, char** argv) {
     };
     for (int i = 0; i < 12; ++i) {
         std::cout << "  - " << css_status_names[i] << ": " << css_status_counts[i] << std::endl;
+    }
+
+    std::cout << "\nCookie Canonicalizer Status Statistics:" << std::endl;
+    const char* cookie_status_names[] = {
+        "kOk                 ",
+        "kIncomplete         ",
+        "kNullInput          ",
+        "kLengthOverflow     ",
+        "kOutputNull         ",
+        "kInvalidByte        ",
+        "kEmptyName          ",
+        "kInvalidName        ",
+        "kUnclosedQuote      ",
+        "kTooManyAttributes  ",
+        "kAttrNameTooLong    ",
+        "kAttrValueTooLong   ",
+        "kInvalidPolicy      ",
+        "kInvalidSameSite    "
+    };
+    for (int i = 0; i < 14; ++i) {
+        std::cout << "  - " << cookie_status_names[i] << ": " << cookie_status_counts[i] << std::endl;
     }
     std::cout << "================================================================" << std::endl;
 

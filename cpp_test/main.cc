@@ -12,6 +12,8 @@
 #include "cpp/mojo_validator_baseline.h"
 #include "cpp/css_tokenizer_adapter.h"
 #include "cpp/css_tokenizer_baseline.h"
+#include "cpp/cookie_canonicalizer_adapter.h"
+#include "cpp/cookie_canonicalizer_baseline.h"
 #include "cpp/test_fixtures.h"
 #include "include/chromium_rust_perf/cxx_bridge.rs.h"
 
@@ -789,6 +791,130 @@ void RunCssDifferentialTests() {
     }
 }
 
+void AssertCookieIdentical(const char* test_name,
+                           const uint8_t* data,
+                           size_t len,
+                           uint32_t max_attributes,
+                           uint32_t max_attr_name_length,
+                           uint32_t max_attr_value_length) {
+    using namespace chromium_rust_perf;
+    CookieCanonicalizer rust_canonicalizer(
+        CookieCanonicalizeOptions{max_attributes, max_attr_name_length, max_attr_value_length});
+    CppBaselineCookieCanonicalizer cpp_canonicalizer(
+        CookieCanonicalizeOptions{max_attributes, max_attr_name_length, max_attr_value_length});
+
+    CookieCanonicalizeResult rust_res = rust_canonicalizer.Canonicalize(data, len);
+    CookieCanonicalizeResult cpp_res = cpp_canonicalizer.Canonicalize(data, len);
+
+    std::string context = std::string(test_name) + " (len=" + std::to_string(len) + ")";
+
+    EXPECT_EQ(static_cast<uint32_t>(rust_res.status), static_cast<uint32_t>(cpp_res.status), context.c_str());
+    EXPECT_EQ(rust_res.name, cpp_res.name, context.c_str());
+    EXPECT_EQ(rust_res.value, cpp_res.value, context.c_str());
+    EXPECT_EQ(rust_res.attribute_count, cpp_res.attribute_count, context.c_str());
+    EXPECT_EQ(rust_res.max_attr_name_length, cpp_res.max_attr_name_length, context.c_str());
+    EXPECT_EQ(rust_res.max_attr_value_length, cpp_res.max_attr_value_length, context.c_str());
+    EXPECT_EQ(rust_res.has_secure, cpp_res.has_secure, context.c_str());
+    EXPECT_EQ(rust_res.has_httponly, cpp_res.has_httponly, context.c_str());
+    EXPECT_EQ(static_cast<uint32_t>(rust_res.same_site), static_cast<uint32_t>(cpp_res.same_site), context.c_str());
+    EXPECT_EQ(rust_res.bytes_consumed, cpp_res.bytes_consumed, context.c_str());
+    EXPECT_EQ(rust_res.ok(), cpp_res.ok(), context.c_str());
+}
+
+void RunCookieUnitTests() {
+    using namespace chromium_rust_perf;
+    std::cout << "[Cookie Unit Tests] Running canonicalizer contract checks..." << std::endl;
+
+    for (const auto& fixture : GetCookieFixtures()) {
+        AssertCookieIdentical(
+            fixture.name.c_str(),
+            fixture.data.data(),
+            fixture.data.size(),
+            fixture.max_attributes,
+            fixture.max_attr_name_length,
+            fixture.max_attr_value_length);
+    }
+
+    CookieCanonicalizer canonicalizer(CookieCanonicalizeOptions{16, 64, 256});
+    {
+        const char* cookie = "session_id=abc; Secure; SameSite=Lax";
+        auto res = canonicalizer.Canonicalize(
+            reinterpret_cast<const uint8_t*>(cookie), std::strlen(cookie));
+        EXPECT_EQ(static_cast<uint32_t>(res.status),
+                  static_cast<uint32_t>(CookieCanonicalizeStatus::kOk),
+                  "CookieValidStatus");
+        EXPECT_TRUE(res.has_secure, "CookieSecureFlag");
+        EXPECT_EQ(static_cast<uint32_t>(res.same_site),
+                  static_cast<uint32_t>(CookieSameSite::kLax),
+                  "CookieSameSiteLax");
+    }
+    {
+        auto res = canonicalizer.Canonicalize(nullptr, 4);
+        EXPECT_EQ(static_cast<uint32_t>(res.status),
+                  static_cast<uint32_t>(CookieCanonicalizeStatus::kNullInput),
+                  "CookieNullInput");
+    }
+    {
+        CookieCanonicalizer bad_policy(CookieCanonicalizeOptions{0, 64, 256});
+        auto res = bad_policy.Canonicalize(reinterpret_cast<const uint8_t*>("a=1"), 3);
+        EXPECT_EQ(static_cast<uint32_t>(res.status),
+                  static_cast<uint32_t>(CookieCanonicalizeStatus::kInvalidPolicy),
+                  "CookieInvalidPolicy");
+    }
+}
+
+void RunCookieDifferentialTests() {
+    std::cout << "[Cookie Differential Tests] Running prefix and mutation scans..." << std::endl;
+
+    const char* base_cookie =
+        "session_id=abc123; Path=/; Domain=example.test; Secure; HttpOnly; SameSite=Strict";
+    size_t total_len = std::strlen(base_cookie);
+    const uint8_t* base_data = reinterpret_cast<const uint8_t*>(base_cookie);
+
+    for (size_t len = 0; len <= total_len; ++len) {
+        AssertCookieIdentical("CookiePrefix", base_data, len, 16, 64, 256);
+    }
+
+    std::vector<uint8_t> mutated(base_data, base_data + total_len);
+    for (size_t i = 0; i < total_len; ++i) {
+        uint8_t original = mutated[i];
+        mutated[i] = 0;
+        AssertCookieIdentical("CookieMutatedNul", mutated.data(), total_len, 16, 64, 256);
+        mutated[i] = ';';
+        AssertCookieIdentical("CookieMutatedSemicolon", mutated.data(), total_len, 16, 64, 256);
+        mutated[i] = original;
+    }
+}
+
+void TestCookieRollbackMechanism() {
+    using namespace chromium_rust_perf;
+    std::cout << "[Cookie Rollback Tests] Running feature flag checks..." << std::endl;
+
+    const char* cookie = "session_id=abc; Secure";
+    CookieCanonicalizer canonicalizer(CookieCanonicalizeOptions{16, 64, 256});
+
+    EXPECT_TRUE(!CookieCanonicalizer::IsRollbackEnabled(), "CookieDefaultRollbackFalse");
+    auto res1 = canonicalizer.Canonicalize(
+        reinterpret_cast<const uint8_t*>(cookie), std::strlen(cookie));
+    EXPECT_EQ(static_cast<uint32_t>(res1.status),
+              static_cast<uint32_t>(CookieCanonicalizeStatus::kOk),
+              "CookieRollbackFalseOk");
+
+    CookieCanonicalizer::SetRollbackEnabled(true);
+    auto res2 = canonicalizer.Canonicalize(
+        reinterpret_cast<const uint8_t*>(cookie), std::strlen(cookie));
+    EXPECT_EQ(static_cast<uint32_t>(res2.status),
+              static_cast<uint32_t>(CookieCanonicalizeStatus::kOk),
+              "CookieRollbackTrueOk");
+
+    CookieCanonicalizer::SetRollbackEnabled(false);
+    auto res3 = canonicalizer.Canonicalize(
+        reinterpret_cast<const uint8_t*>(cookie), std::strlen(cookie));
+    EXPECT_EQ(static_cast<uint32_t>(res3.status),
+              static_cast<uint32_t>(CookieCanonicalizeStatus::kOk),
+              "CookieRollbackRestoreOk");
+}
+
 void TestCssRollbackMechanism() {
     using namespace chromium_rust_perf;
     std::cout << "[CSS Rollback Tests] Running feature flag checks..." << std::endl;
@@ -829,6 +955,10 @@ int main() {
     RunCssUnitTests();
     RunCssDifferentialTests();
     TestCssRollbackMechanism();
+
+    RunCookieUnitTests();
+    RunCookieDifferentialTests();
+    TestCookieRollbackMechanism();
     
     RunMojoReaderWriterTests();
     RunTaskRunnerBridgeTests();

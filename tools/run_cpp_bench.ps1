@@ -102,6 +102,7 @@ if ($compiler -eq "clang++") {
         "cpp/url_canonicalizer_adapter.cc",
         "cpp/mojo_validator_adapter.cc",
         "cpp/css_tokenizer_adapter.cc",
+        "cpp/cookie_canonicalizer_adapter.cc",
         $libPath,
         "-o", $outputExe
     )
@@ -126,6 +127,7 @@ if ($compiler -eq "clang++") {
         "cpp/url_canonicalizer_adapter.cc",
         "cpp/mojo_validator_adapter.cc",
         "cpp/css_tokenizer_adapter.cc",
+        "cpp/cookie_canonicalizer_adapter.cc",
         $libPath,
         "/Fe$outputExe"
     )
@@ -182,5 +184,14 @@ if ($Mode -eq "all" -or $Mode -eq "css") {
     Write-Host "-> Running CSS Tokenizer benchmarks..."
     & $outputExe --mode css --json $cssReport --samples 21
     Invoke-NativeChecked { python tools/rust_perf_gate.py --report $cssReport --budget-file budgets/css_tokenizer_perf.json }
+    Write-Host ""
+}
+
+if ($Mode -eq "all" -or $Mode -eq "cookie") {
+    # 5. Cookie Canonicalizer Bench
+    $cookieReport = "target/bench/cookie_canonicalizer.json"
+    Write-Host "-> Running Cookie Canonicalizer benchmarks..."
+    & $outputExe --mode cookie --json $cookieReport --samples 21
+    Invoke-NativeChecked { python tools/rust_perf_gate.py --report $cookieReport --budget-file budgets/cookie_canonicalizer_perf.json }
     Write-Host ""
 }

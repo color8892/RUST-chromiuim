@@ -1,0 +1,12 @@
+[package]
+name = "chromium_rust_cookie_canonicalizer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = []

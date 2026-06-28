@@ -19,6 +19,7 @@ chromium_rust_http_header_scanner = { path = "../hot_leaf/http_header_scanner", 
 chromium_rust_url_canonicalizer = { path = "../hot_leaf/url_canonicalizer", default-features = false }
 chromium_rust_mojo_validator = { path = "../hot_leaf/mojo_validator", default-features = false }
 chromium_rust_css_tokenizer = { path = "../hot_leaf/css_tokenizer", default-features = false }
+chromium_rust_cookie_canonicalizer = { path = "../hot_leaf/cookie_canonicalizer", default-features = false }
 cxx = { workspace = true, optional = true }
 
 [build-dependencies]

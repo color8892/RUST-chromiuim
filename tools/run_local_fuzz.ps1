@@ -86,6 +86,7 @@ if ($compiler -eq "clang++") {
         "cpp/url_canonicalizer_adapter.cc",
         "cpp/mojo_validator_adapter.cc",
         "cpp/css_tokenizer_adapter.cc",
+        "cpp/cookie_canonicalizer_adapter.cc",
         $libPath,
         "-o", $outputExe
     )
@@ -109,6 +110,7 @@ if ($compiler -eq "clang++") {
         "cpp/url_canonicalizer_adapter.cc",
         "cpp/mojo_validator_adapter.cc",
         "cpp/css_tokenizer_adapter.cc",
+        "cpp/cookie_canonicalizer_adapter.cc",
         $libPath,
         "/Fe$outputExe"
     )

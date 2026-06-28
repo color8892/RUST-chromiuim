@@ -70,6 +70,7 @@ def emit_replay_source(manifest_path: Path) -> str:
 #include "cpp/url_canonicalizer_adapter.h"
 #include "cpp/mojo_validator_adapter.h"
 #include "cpp/css_tokenizer_adapter.h"
+#include "cpp/cookie_canonicalizer_adapter.h"
 
 namespace {{
 
@@ -157,6 +158,28 @@ bool ReplayMojoSeed(const Seed& seed) {{
   return rust.status == cpp.status && rust.error_offset == cpp.error_offset;
 }}
 
+bool ReplayCookieSeed(const Seed& seed) {{
+  using namespace chromium_rust_perf;
+  CookieCanonicalizer canonicalizer(CookieCanonicalizeOptions{{16, 64, 256}});
+
+  CookieCanonicalizer::SetRollbackEnabled(false);
+  CookieCanonicalizeResult rust = canonicalizer.Canonicalize(seed.data, seed.len);
+  CookieCanonicalizer::SetRollbackEnabled(true);
+  CookieCanonicalizeResult cpp = canonicalizer.Canonicalize(seed.data, seed.len);
+  CookieCanonicalizer::SetRollbackEnabled(false);
+
+  return rust.status == cpp.status &&
+         rust.name == cpp.name &&
+         rust.value == cpp.value &&
+         rust.attribute_count == cpp.attribute_count &&
+         rust.max_attr_name_length == cpp.max_attr_name_length &&
+         rust.max_attr_value_length == cpp.max_attr_value_length &&
+         rust.has_secure == cpp.has_secure &&
+         rust.has_httponly == cpp.has_httponly &&
+         rust.same_site == cpp.same_site &&
+         rust.bytes_consumed == cpp.bytes_consumed;
+}}
+
 bool ReplayCssSeed(const Seed& seed) {{
   using namespace chromium_rust_perf;
   CssTokenizer tokenizer(CssTokenizeOptions{{256, 512}});
@@ -185,6 +208,9 @@ bool ReplaySeed(const Seed& seed) {{
   }}
   if (std::strcmp(seed.component, "css_tokenizer") == 0) {{
     return ReplayCssSeed(seed);
+  }}
+  if (std::strcmp(seed.component, "cookie_canonicalizer") == 0) {{
+    return ReplayCookieSeed(seed);
   }}
   std::cerr << "Unknown component: " << seed.component << std::endl;
   return false;

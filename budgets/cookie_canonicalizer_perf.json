@@ -1,0 +1,22 @@
+{
+  "benchmarks": [
+    {
+      "name": "Small Cookie",
+      "min_speedup": 0.8,
+      "baseline_rust_ns": 60.0,
+      "max_regression_percent": 35.0
+    },
+    {
+      "name": "Large Cookie",
+      "min_speedup": 0.8,
+      "baseline_rust_ns": 900.0,
+      "max_regression_percent": 35.0
+    },
+    {
+      "name": "Malformed Cookie",
+      "min_speedup": 0.8,
+      "baseline_rust_ns": 35.0,
+      "max_regression_percent": 35.0
+    }
+  ]
+}

@@ -132,12 +132,14 @@
       "memory_safety_rationale": "Cookie parsing accepts attacker-controlled strings and feeds security decisions such as SameSite and domain matching.",
       "typical_bug_classes": ["parser differentials", "attribute boundary mistakes", "domain/path confusion"],
       "feasibility": "medium",
-      "status": "planned",
-      "p0_component": null,
-      "next_chromium_task": "chromium-gn-target-import",
+      "status": "prototype_perf_candidate",
+      "p0_component": "cookie_canonicalizer",
+      "next_chromium_task": "chromium-real-callsite-wiring",
       "roadmap_matrix_area": "Chromium GN target integration",
       "do_not_expand_into": ["cookie store persistence", "quota policy", "site isolation integration"],
       "evidence": [
+        "rust/hot_leaf/cookie_canonicalizer/src/lib.rs",
+        "p0_hot_leaf_registry.json",
         "docs/chromium_rust_perf_size_policy.md",
         "docs/chromium_integration_roadmap.md"
       ]

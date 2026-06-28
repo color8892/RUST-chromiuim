@@ -19,6 +19,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "chromium_rust_cookie_canonicalizer"
+version = "0.1.0"
+
+[[package]]
 name = "chromium_rust_css_tokenizer"
 version = "0.1.0"
 
@@ -34,6 +38,7 @@ version = "0.1.0"
 name = "chromium_rust_perf_ffi_static"
 version = "0.1.0"
 dependencies = [
+ "chromium_rust_cookie_canonicalizer",
  "chromium_rust_css_tokenizer",
  "chromium_rust_http_header_scanner",
  "chromium_rust_mojo_validator",

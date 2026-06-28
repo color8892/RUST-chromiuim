@@ -22,7 +22,7 @@ class StandaloneReadinessReportTest(unittest.TestCase):
             report["next_chromium_task_blocked_reason"],
         )
         self.assertEqual("http-header-scanner", report["top_memory_safety_candidate"])
-        self.assertEqual("cookie-canonicalizer", report["next_planned_safety_candidate"])
+        self.assertEqual("mime-content-type-parser", report["next_planned_safety_candidate"])
         self.assertIn("Android supersize diff", report["external_blockers"])
 
     def test_markdown_contains_next_commands(self) -> None:
