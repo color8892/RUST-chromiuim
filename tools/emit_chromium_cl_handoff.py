@@ -52,8 +52,10 @@ def build_handoff(repo_root: Path) -> dict[str, Any]:
             "powershell -ExecutionPolicy Bypass -File tools/run_all_gates.ps1",
             "python tools/check_chromium_import_consistency.py",
             "python tools/check_chromium_integration_checklist.py",
+            "python tools/check_chromium_checkout_preflight.py",
         ],
         "chromium_checkout_commands": [
+            "python tools/check_chromium_checkout_preflight.py --chromium-root C:\\path\\to\\chromium\\src",
             "powershell -ExecutionPolicy Bypass -File tools/prepare_chromium_import.ps1 -ChromiumRoot C:\\path\\to\\chromium\\src -DryRun",
             "powershell -ExecutionPolicy Bypass -File tools/prepare_chromium_import.ps1 -ChromiumRoot C:\\path\\to\\chromium\\src",
             "gn gen out/rust-perf",

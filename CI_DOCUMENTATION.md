@@ -47,6 +47,7 @@ The repository enforces the following automated quality gates:
 | **Chromium Integration Checklist** | `check_chromium_integration_checklist.py` | Keeps standalone-complete items separate from work that requires a real Chromium checkout. |
 | **Chromium Import Consistency** | `check_chromium_import_consistency.py` | Verifies `BUILD.gn`, the P0 registry, and the import manifest stay aligned before a Chromium checkout import. |
 | **Chromium CL Handoff Package** | `emit_chromium_cl_handoff.py` | Writes JSON and Markdown handoff artifacts for the first real Chromium CL under `target/reports/`. |
+| **Chromium Checkout Preflight** | `check_chromium_checkout_preflight.py` | Writes a non-mutating report for a real Chromium checkout path, or a placeholder report when no path is provided. |
 | **P0 Perf Stability Settings** | `check_perf_stability.py` | Prevents benchmark gates from silently dropping below the required sample count or losing perf budgets. |
 | **Source / Artifact Guard** | `rust_hot_leaf_guard.py` | Enforces `#![no_std]` rules and ensures no disallowed external crate imports. |
 | **Binary Size Gate** | `rust_size_gate.py` | Ensures that Rust static libraries and individual rlib sizes stay within strict bounds. |

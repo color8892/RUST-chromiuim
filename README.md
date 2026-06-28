@@ -59,6 +59,7 @@ powershell -ExecutionPolicy Bypass -File tools/run_cpp_bench.ps1
 powershell -ExecutionPolicy Bypass -File tools/run_local_fuzz.ps1
 powershell -ExecutionPolicy Bypass -File tools/check_chromium_integration_readiness.ps1
 python tools/emit_chromium_cl_handoff.py
+python tools/check_chromium_checkout_preflight.py --chromium-root C:\path\to\chromium\src
 ```
 
 Prepare a real Chromium checkout import:
