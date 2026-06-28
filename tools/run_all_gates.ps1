@@ -48,6 +48,7 @@ Run-GateStep "Python Gate Tools CLI Verification" {
     python tools/check_chromium_import_consistency.py --help > $null
     python tools/emit_chromium_cl_handoff.py --help > $null
     python tools/check_chromium_checkout_preflight.py --help > $null
+    python tools/check_chromium_next_tasks.py --help > $null
     python tools/emit_standalone_readiness_report.py --help > $null
     python tools/emit_reports_manifest.py --help > $null
 }
@@ -81,6 +82,7 @@ Run-GateStep "P0 Standalone Reports" {
     python tools/check_chromium_integration_checklist.py
     python tools/emit_chromium_cl_handoff.py
     python tools/check_chromium_checkout_preflight.py
+    python tools/check_chromium_next_tasks.py
     python tools/emit_standalone_readiness_report.py
     python tools/emit_reports_manifest.py
 }

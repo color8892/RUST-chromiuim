@@ -53,6 +53,7 @@ The repository enforces the following automated quality gates:
 | **Chromium Import Consistency** | `check_chromium_import_consistency.py` | Verifies `BUILD.gn`, the P0 registry, and the import manifest stay aligned before a Chromium checkout import. |
 | **Chromium CL Handoff Package** | `emit_chromium_cl_handoff.py` | Writes JSON and Markdown handoff artifacts for the first real Chromium CL under `target/reports/`. |
 | **Chromium Checkout Preflight** | `check_chromium_checkout_preflight.py` | Writes a non-mutating report for a real Chromium checkout path, or a placeholder report when no path is provided. |
+| **Chromium Next Tasks** | `check_chromium_next_tasks.py` | Validates an agent-ready task graph for work that requires a real Chromium checkout. |
 | **Standalone Readiness Report** | `emit_standalone_readiness_report.py` | Summarizes completed standalone gates, remaining Chromium-checkout blockers, and next commands under `target/reports/`. |
 | **Reports Manifest** | `emit_reports_manifest.py` | Indexes generated report artifacts and their reading order under `target/reports/reports_manifest.json`. |
 | **P0 Perf Stability Settings** | `check_perf_stability.py` | Prevents benchmark gates from silently dropping below the required sample count or losing perf budgets. |

@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "chromium-preflight",
+      "title": "Validate real Chromium checkout",
+      "phase": "chromium_checkout_integration",
+      "status": "requires_chromium_checkout",
+      "depends_on": [],
+      "entry_commands": [
+        "python tools/check_chromium_checkout_preflight.py --chromium-root C:\\path\\to\\chromium\\src"
+      ],
+      "acceptance_gates": [
+        "preflight status is ready",
+        "required paths include build/config/rust.gni, mojo, third_party/blink, and v8"
+      ],
+      "evidence": [
+        "tools/check_chromium_checkout_preflight.py",
+        "chromium_import_manifest.json"
+      ]
+    },
+    {
+      "id": "chromium-import-dry-run",
+      "title": "Run non-mutating import dry-run",
+      "phase": "chromium_checkout_integration",
+      "status": "requires_chromium_checkout",
+      "depends_on": [
+        "chromium-preflight"
+      ],
+      "entry_commands": [
+        "powershell -ExecutionPolicy Bypass -File tools/prepare_chromium_import.ps1 -ChromiumRoot C:\\path\\to\\chromium\\src -DryRun"
+      ],
+      "acceptance_gates": [
+        "dry-run reports files to copy",
+        "dry-run reports no missing manifest entries",
+        "no files are copied"
+      ],
+      "evidence": [
+        "tools/prepare_chromium_import.ps1",
+        "tools/emit_chromium_import_report.py"
+      ]
+    },
+    {
+      "id": "chromium-gn-wiring-http",
+      "title": "Wire first HTTP header scanner GN target",
+      "phase": "chromium_checkout_integration",
+      "status": "requires_chromium_checkout",
+      "depends_on": [
+        "chromium-import-dry-run"
+      ],
+      "entry_commands": [
+        "powershell -ExecutionPolicy Bypass -File tools/prepare_chromium_import.ps1 -ChromiumRoot C:\\path\\to\\chromium\\src",
+        "gn gen out/rust-perf",
+        "autoninja -C out/rust-perf //third_party/rust/chromium_rust_perf:rust_perf_unittests"
+      ],
+      "acceptance_gates": [
+        "GN generation succeeds",
+        "rust_perf_unittests target builds",
+        "old C++ path remains available behind rollback"
+      ],
+      "evidence": [
+        "BUILD.gn",
+        "tools/emit_chromium_cl_handoff.py",
+        "tools/run_rollback_gate.ps1"
+      ]
+    },
+    {
+      "id": "chromium-supersize",
+      "title": "Run Android official build and supersize diff",
+      "phase": "chromium_checkout_integration",
+      "status": "requires_chromium_checkout",
+      "depends_on": [
+        "chromium-gn-wiring-http"
+      ],
+      "entry_commands": [
+        "tools/binary_size/supersize.py archive --output-directory out/rust-perf size-after.size",
+        "tools/binary_size/supersize.py diff size-before.size size-after.size"
+      ],
+      "acceptance_gates": [
+        "Android official build completes",
+        "supersize diff artifact is attached",
+        "binary-size increase is zero or explicitly offset"
+      ],
+      "evidence": [
+        "docs/chromium_integration_roadmap.md",
+        "budgets/rust_artifacts_size.json"
+      ]
+    },
+    {
+      "id": "chromium-fuzz-wpt",
+      "title": "Attach Chromium fuzz and web-test coverage",
+      "phase": "chromium_checkout_integration",
+      "status": "requires_chromium_checkout",
+      "depends_on": [
+        "chromium-gn-wiring-http"
+      ],
+      "entry_commands": [
+        "Add Chromium-style fuzz target for the imported leaf",
+        "Run relevant web_tests or WPT only after a browser-visible callsite is wired"
+      ],
+      "acceptance_gates": [
+        "fuzz target covers malformed, truncated, bounds, alignment, and capacity cases",
+        "browser-visible behavior has differential or web-test coverage",
+        "local random fuzz smoke is not treated as Chromium fuzz coverage"
+      ],
+      "evidence": [
+        "fuzz_corpus_manifest.json",
+        "tools/run_fuzz_corpus_replay.ps1",
+        "docs/chromium_integration_roadmap.md"
+      ]
+    }
+  ]
+}
