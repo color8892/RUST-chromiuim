@@ -49,6 +49,7 @@ Run-GateStep "Python Gate Tools CLI Verification" {
     python tools/emit_chromium_cl_handoff.py --help > $null
     python tools/check_chromium_checkout_preflight.py --help > $null
     python tools/emit_standalone_readiness_report.py --help > $null
+    python tools/emit_reports_manifest.py --help > $null
 }
 
 # 2.0 P0 component registry.
@@ -81,6 +82,7 @@ Run-GateStep "P0 Standalone Reports" {
     python tools/emit_chromium_cl_handoff.py
     python tools/check_chromium_checkout_preflight.py
     python tools/emit_standalone_readiness_report.py
+    python tools/emit_reports_manifest.py
 }
 
 # 2.0.5 Benchmark stability guard.

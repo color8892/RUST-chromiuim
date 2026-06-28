@@ -54,6 +54,7 @@ The repository enforces the following automated quality gates:
 | **Chromium CL Handoff Package** | `emit_chromium_cl_handoff.py` | Writes JSON and Markdown handoff artifacts for the first real Chromium CL under `target/reports/`. |
 | **Chromium Checkout Preflight** | `check_chromium_checkout_preflight.py` | Writes a non-mutating report for a real Chromium checkout path, or a placeholder report when no path is provided. |
 | **Standalone Readiness Report** | `emit_standalone_readiness_report.py` | Summarizes completed standalone gates, remaining Chromium-checkout blockers, and next commands under `target/reports/`. |
+| **Reports Manifest** | `emit_reports_manifest.py` | Indexes generated report artifacts and their reading order under `target/reports/reports_manifest.json`. |
 | **P0 Perf Stability Settings** | `check_perf_stability.py` | Prevents benchmark gates from silently dropping below the required sample count or losing perf budgets. |
 | **Source / Artifact Guard** | `rust_hot_leaf_guard.py` | Enforces `#![no_std]` rules and ensures no disallowed external crate imports. |
 | **Binary Size Gate** | `rust_size_gate.py` | Ensures that Rust static libraries and individual rlib sizes stay within strict bounds. |

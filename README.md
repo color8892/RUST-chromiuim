@@ -63,6 +63,7 @@ powershell -ExecutionPolicy Bypass -File tools/check_chromium_integration_readin
 python tools/emit_chromium_cl_handoff.py
 python tools/check_chromium_checkout_preflight.py --chromium-root C:\path\to\chromium\src
 python tools/emit_standalone_readiness_report.py
+python tools/emit_reports_manifest.py
 ```
 
 Prepare a real Chromium checkout import:
