@@ -1,0 +1,260 @@
+{
+  "schema_version": 1,
+  "ranking_axis": "memory_safety_value",
+  "policy_note": "Memory safety is the primary motivation for candidate selection, but Chromium merge still requires perf, size, differential, fuzz, and rollback gates.",
+  "selection_criteria": [
+    "consumes untrusted input from network, IPC, files, or renderer-generated data",
+    "pure leaf logic with caller-owned buffers and compact status returns",
+    "fuzzable malformed, truncated, bounds, alignment, and capacity cases",
+    "differential-testable against the existing C++ implementation",
+    "runtime rollback can force the C++ path without rewiring ownership graphs"
+  ],
+  "blocked_areas": [
+    {
+      "area": "third_party codecs and media runtimes",
+      "examples": ["third_party/ffmpeg", "third_party/libvpx", "third_party/webrtc"],
+      "reason": "external upstream ecosystems with conformance, licensing, and performance constraints"
+    },
+    {
+      "area": "Blink LayoutNG core",
+      "examples": ["layout object graph", "fragment tree", "Oilpan-managed DOM"],
+      "reason": "GC-owned object graph and style orchestration are incompatible with narrow Rust leaf ABI"
+    },
+    {
+      "area": "V8 parser, JIT, and GC",
+      "examples": ["parser", "bytecode compiler", "JIT", "handles", "isolate object graph"],
+      "reason": "performance and semantic coupling are too deep for safe incremental Rust replacement"
+    },
+    {
+      "area": "Browser process object graph",
+      "examples": ["profiles", "WebContents", "navigation", "keyed services"],
+      "reason": "lifecycle and ownership orchestration dominate memory risk more than parser leaves"
+    },
+    {
+      "area": "GPU command decoder runtime",
+      "examples": ["command decoder", "scheduler", "driver-facing runtime"],
+      "reason": "driver and platform coupling; only validation tables are in scope"
+    }
+  ],
+  "candidates": [
+    {
+      "rank": 1,
+      "id": "http-header-scanner",
+      "name": "HTTP header scanner",
+      "chromium_location": "net/http",
+      "tier": "tier_1_hot_leaf",
+      "memory_safety_score": 95,
+      "memory_safety_rationale": "High-frequency parser over attacker-controlled network bytes; classic OOB and malformed-token bugs.",
+      "typical_bug_classes": ["out-of-bounds read", "integer overflow", "parser differentials"],
+      "feasibility": "high",
+      "status": "production_candidate",
+      "p0_component": "http_header_scanner",
+      "next_chromium_task": "chromium-gn-target-import",
+      "roadmap_matrix_area": "Chromium GN target integration",
+      "do_not_expand_into": ["socket state machine", "connection ownership", "HTTP/2 frame reassembly core"],
+      "evidence": [
+        "rust/hot_leaf/http_header_scanner/src/lib.rs",
+        "p0_hot_leaf_registry.json",
+        "docs/chromium_integration_roadmap.md"
+      ]
+    },
+    {
+      "rank": 2,
+      "id": "url-canonicalizer",
+      "name": "URL component parser and canonicalizer",
+      "chromium_location": "url/",
+      "tier": "tier_1_hot_leaf",
+      "memory_safety_score": 94,
+      "memory_safety_rationale": "URL confusion and parser bugs are a long-standing web security surface with strong fuzz coverage.",
+      "typical_bug_classes": ["parser differentials", "bounds mistakes", "canonicalization confusion"],
+      "feasibility": "high",
+      "status": "production_candidate",
+      "p0_component": "url_canonicalizer",
+      "next_chromium_task": "chromium-gn-target-import",
+      "roadmap_matrix_area": "Chromium GN target integration",
+      "do_not_expand_into": ["scheme handler registry", "navigation policy", "site isolation orchestration"],
+      "evidence": [
+        "rust/hot_leaf/url_canonicalizer/src/lib.rs",
+        "p0_hot_leaf_registry.json",
+        "docs/chromium_rust_perf_size_policy.md"
+      ]
+    },
+    {
+      "rank": 3,
+      "id": "mojo-ipc-validator",
+      "name": "Mojo IPC message validator",
+      "chromium_location": "mojo/",
+      "tier": "tier_1_hot_leaf",
+      "memory_safety_score": 93,
+      "memory_safety_rationale": "Cross-process boundary validation on structured attacker-influenced bytes can contain sandbox escape classes of bugs.",
+      "typical_bug_classes": ["bounds validation failure", "type confusion at IPC boundary", "truncated message handling"],
+      "feasibility": "medium",
+      "status": "prototype_size_candidate",
+      "p0_component": "mojo_validator",
+      "next_chromium_task": "chromium-fuzz-corpus",
+      "roadmap_matrix_area": "Chromium GN target integration",
+      "do_not_expand_into": ["message pipe ownership", "handle transfer policy", "Mojo bindings generator core"],
+      "evidence": [
+        "rust/hot_leaf/mojo_validator/src/lib.rs",
+        "p0_hot_leaf_registry.json",
+        "docs/chromium_integration_roadmap.md"
+      ]
+    },
+    {
+      "rank": 4,
+      "id": "blink-css-tokenizer",
+      "name": "Blink CSS tokenizer and selector prefilter leaf",
+      "chromium_location": "third_party/blink/renderer/core/css/",
+      "tier": "tier_2_parser_leaf",
+      "memory_safety_score": 90,
+      "memory_safety_rationale": "Stylesheet and selector parsing have a long history of memory safety bugs while still behaving like bounded parser leaves.",
+      "typical_bug_classes": ["tokenizer OOB", "escaped sequence handling", "selector parse confusion"],
+      "feasibility": "medium",
+      "status": "planned",
+      "p0_component": null,
+      "next_chromium_task": "chromium-real-callsite-wiring",
+      "roadmap_matrix_area": "Blink LayoutNG",
+      "do_not_expand_into": ["layout object graph", "style recalc orchestration", "Oilpan-managed DOM"],
+      "evidence": [
+        "docs/chromium_integration_roadmap.md",
+        "docs/chromium_rust_perf_size_policy.md"
+      ]
+    },
+    {
+      "rank": 5,
+      "id": "cookie-canonicalizer",
+      "name": "Cookie attribute and value canonicalizer",
+      "chromium_location": "net/cookies/",
+      "tier": "tier_2_parser_leaf",
+      "memory_safety_score": 88,
+      "memory_safety_rationale": "Cookie parsing accepts attacker-controlled strings and feeds security decisions such as SameSite and domain matching.",
+      "typical_bug_classes": ["parser differentials", "attribute boundary mistakes", "domain/path confusion"],
+      "feasibility": "medium",
+      "status": "planned",
+      "p0_component": null,
+      "next_chromium_task": "chromium-gn-target-import",
+      "roadmap_matrix_area": "Chromium GN target integration",
+      "do_not_expand_into": ["cookie store persistence", "quota policy", "site isolation integration"],
+      "evidence": [
+        "docs/chromium_rust_perf_size_policy.md",
+        "docs/chromium_integration_roadmap.md"
+      ]
+    },
+    {
+      "rank": 6,
+      "id": "mime-content-type-parser",
+      "name": "MIME and Content-Type parser",
+      "chromium_location": "net/http / services/network",
+      "tier": "tier_2_parser_leaf",
+      "memory_safety_score": 86,
+      "memory_safety_rationale": "Small parser over untrusted response metadata; bugs can influence sniffing and security policy decisions.",
+      "typical_bug_classes": ["header parameter parsing bugs", "charset boundary mistakes", "quoted-string handling"],
+      "feasibility": "high",
+      "status": "planned",
+      "p0_component": null,
+      "next_chromium_task": "chromium-gn-target-import",
+      "roadmap_matrix_area": "Chromium GN target integration",
+      "do_not_expand_into": ["MIME sniffing policy engine", "download classification orchestration"],
+      "evidence": [
+        "docs/chromium_rust_perf_size_policy.md"
+      ]
+    },
+    {
+      "rank": 7,
+      "id": "cert-name-constraint-validator",
+      "name": "Certificate name constraint and SAN boundary validator",
+      "chromium_location": "net/cert / crypto boundaries",
+      "tier": "tier_2_validator",
+      "memory_safety_score": 85,
+      "memory_safety_rationale": "High-impact trust-boundary parsing, but only viable as a narrow validator rather than a crypto runtime rewrite.",
+      "typical_bug_classes": ["ASN.1 bounds mistakes", "name constraint parsing", "IDNA boundary confusion"],
+      "feasibility": "low",
+      "status": "exploratory",
+      "p0_component": null,
+      "next_chromium_task": "chromium-differential-tests",
+      "roadmap_matrix_area": "Chromium GN target integration",
+      "do_not_expand_into": ["TLS handshake state machine", "private key handling", "platform keychain integration"],
+      "evidence": [
+        "docs/chromium_integration_roadmap.md"
+      ]
+    },
+    {
+      "rank": 8,
+      "id": "gpu-command-buffer-validation-table",
+      "name": "GPU command buffer validation table",
+      "chromium_location": "gpu/command_buffer/",
+      "tier": "tier_2_generated_validator",
+      "memory_safety_score": 84,
+      "memory_safety_rationale": "Untrusted GPU commands are a classic sandbox escape surface; generated validation tables fit Rust well without touching the decoder runtime.",
+      "typical_bug_classes": ["command bounds mistakes", "argument count/alignment errors", "capability exhaustion"],
+      "feasibility": "medium",
+      "status": "exploratory",
+      "p0_component": null,
+      "next_chromium_task": "chromium-fuzz-corpus",
+      "roadmap_matrix_area": "GPU command runtime",
+      "do_not_expand_into": ["command decoder runtime", "scheduler", "driver-facing GL/Vulkan runtime"],
+      "evidence": [
+        "docs/chromium_integration_roadmap.md",
+        "docs/chromium_rust_perf_size_policy.md"
+      ]
+    },
+    {
+      "rank": 9,
+      "id": "json-manifest-prefs-parser",
+      "name": "JSON manifest and prefs parser leaf",
+      "chromium_location": "base/json / components/",
+      "tier": "tier_2_parser_leaf",
+      "memory_safety_score": 80,
+      "memory_safety_rationale": "Untrusted configuration and manifest parsing can be memory-unsafe, but startup materialization cost can erase wins.",
+      "typical_bug_classes": ["depth/size exhaustion", "escape handling bugs", "numeric conversion mistakes"],
+      "feasibility": "medium",
+      "status": "planned",
+      "p0_component": null,
+      "next_chromium_task": "chromium-benchmark-gate",
+      "roadmap_matrix_area": "Chromium GN target integration",
+      "do_not_expand_into": ["feature policy orchestration", "profile lifecycle", "prefs store ownership"],
+      "evidence": [
+        "docs/chromium_rust_perf_size_policy.md"
+      ]
+    },
+    {
+      "rank": 10,
+      "id": "image-font-media-metadata-validator",
+      "name": "Image, font, and media metadata validator",
+      "chromium_location": "media/ / third_party/blink renderer platform",
+      "tier": "tier_2_metadata_leaf",
+      "memory_safety_score": 78,
+      "memory_safety_rationale": "Metadata and bounds validation before full decode can contain memory safety bugs without replacing ffmpeg/libvpx runtimes.",
+      "typical_bug_classes": ["header bounds mistakes", "table size overflow", "truncated container parsing"],
+      "feasibility": "medium",
+      "status": "planned",
+      "p0_component": null,
+      "next_chromium_task": "chromium-fuzz-corpus",
+      "roadmap_matrix_area": "Chromium GN target integration",
+      "do_not_expand_into": ["video decoder runtime", "audio decoder runtime", "third_party/ffmpeg integration core"],
+      "evidence": [
+        "docs/chromium_rust_perf_size_policy.md",
+        "docs/chromium_integration_roadmap.md"
+      ]
+    },
+    {
+      "rank": 11,
+      "id": "v8-bytecode-metadata-checker",
+      "name": "V8 bytecode and metadata boundary checker",
+      "chromium_location": "v8/",
+      "tier": "tier_3_boundary_only",
+      "memory_safety_score": 72,
+      "memory_safety_rationale": "Useful only as a generated checker over fixed metadata, not as a parser or JIT replacement.",
+      "typical_bug_classes": ["bounds validation failure", "invalid opcode metadata", "truncated bytecode handling"],
+      "feasibility": "low",
+      "status": "exploratory",
+      "p0_component": null,
+      "next_chromium_task": null,
+      "roadmap_matrix_area": "V8 parser/JIT/GC",
+      "do_not_expand_into": ["parser", "JIT", "GC", "handles", "isolate object graph"],
+      "evidence": [
+        "docs/chromium_integration_roadmap.md"
+      ]
+    }
+  ]
+}

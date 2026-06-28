@@ -70,6 +70,14 @@
             "tools/check_chromium_next_tasks.py",
             "tools/select_chromium_next_task.py"
           ]
+        },
+        {
+          "name": "chromium_rust_safety_candidates",
+          "status": "complete",
+          "evidence": [
+            "chromium_rust_safety_candidates.json",
+            "tools/check_chromium_rust_safety_candidates.py"
+          ]
         }
       ]
     },

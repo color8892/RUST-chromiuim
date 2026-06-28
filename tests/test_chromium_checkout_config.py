@@ -5,7 +5,12 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from tools.chromium_checkout_config import default_config, load_config, resolve_chromium_root
+from tools.chromium_checkout_config import (
+    default_config,
+    is_ready_chromium_root,
+    load_config,
+    resolve_chromium_root,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +31,29 @@ class ChromiumCheckoutConfigTest(unittest.TestCase):
             resolved = resolve_chromium_root(REPO_ROOT, explicit)
 
         self.assertEqual(explicit, resolved)
+
+    def test_resolve_ignores_incomplete_configured_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            checkout = root / "chromium" / "src"
+            checkout.mkdir(parents=True)
+            config_path = root / "chromium_checkout.local.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "chromium_root": str(checkout),
+                        "depot_tools": str(root / "depot_tools"),
+                        "checkout_parent": str(root / "chromium"),
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            resolved = resolve_chromium_root(root)
+
+        self.assertIsNone(resolved)
+        self.assertFalse(is_ready_chromium_root(checkout))
 
     def test_load_config_reads_local_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

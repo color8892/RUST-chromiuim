@@ -11,6 +11,7 @@
     "BUILD.gn",
     "chromium_integration_checklist.json",
     "chromium_next_tasks.json",
+    "chromium_rust_safety_candidates.json",
     "Cargo.toml",
     "Cargo.lock",
     "README.md",

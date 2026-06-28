@@ -19,6 +19,7 @@ class StandaloneReadinessRunnerTest(unittest.TestCase):
         self.assertIn("tools/check_chromium_checkout_preflight.py", script)
         self.assertIn("tools/check_chromium_next_tasks.py", script)
         self.assertIn("tools/select_chromium_next_task.py", script)
+        self.assertIn("tools/check_chromium_rust_safety_candidates.py", script)
         self.assertIn("tools/emit_standalone_readiness_report.py", script)
 
     def test_runner_does_not_replace_heavy_ci(self) -> None:

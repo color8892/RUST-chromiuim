@@ -15,6 +15,8 @@ if __package__ is None or __package__ == "":
 from tools.check_chromium_checkout_preflight import build_preflight_report
 from tools.check_chromium_integration_checklist import build_report as build_checklist_report
 from tools.check_chromium_integration_checklist import validate_checklist
+from tools.check_chromium_rust_safety_candidates import build_report as build_safety_report
+from tools.check_chromium_rust_safety_candidates import validate_manifest as validate_safety_candidates
 from tools.emit_chromium_cl_handoff import build_handoff
 from tools.select_chromium_next_task import select_next_task
 
@@ -45,6 +47,23 @@ def build_readiness_report(repo_root: Path) -> dict[str, Any]:
         None,
     )
     selected = next_task["selected_task"]
+    safety_payload, safety_violations = validate_safety_candidates(
+        repo_root / "chromium_rust_safety_candidates.json",
+        repo_root,
+        repo_root / "p0_hot_leaf_registry.json",
+    )
+    if safety_violations:
+        raise ValueError("; ".join(violation.render() for violation in safety_violations))
+    safety_report = build_safety_report(safety_payload)
+    top_safety = safety_report["candidates"][0]
+    next_planned = next(
+        (
+            candidate
+            for candidate in safety_report["candidates"]
+            if candidate["status"] in {"planned", "exploratory"} and candidate["p0_component"] is None
+        ),
+        None,
+    )
 
     complete_items = checklist_report["item_status_counts"].get("complete", 0)
     chromium_required_items = checklist_report["item_status_counts"].get(
@@ -67,6 +86,9 @@ def build_readiness_report(repo_root: Path) -> dict[str, Any]:
         "next_chromium_task": selected["id"] if selected is not None else None,
         "next_chromium_task_title": selected["title"] if selected is not None else None,
         "next_chromium_task_blocked_reason": selected["blocked_reason"] if selected is not None else None,
+        "top_memory_safety_candidate": top_safety["id"],
+        "top_memory_safety_score": top_safety["memory_safety_score"],
+        "next_planned_safety_candidate": next_planned["id"] if next_planned is not None else None,
         "local_preflight_commands": handoff["local_preflight_commands"],
         "chromium_checkout_commands": handoff["chromium_checkout_commands"],
         "external_blockers": handoff["external_gates_not_satisfied_in_this_repo"],
@@ -90,6 +112,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     ]
     if report["next_chromium_task_blocked_reason"]:
         lines.append(f"Next Chromium task blocked: `{report['next_chromium_task_blocked_reason']}`")
+    lines.append(f"Top memory-safety candidate: `{report['top_memory_safety_candidate']}`")
+    lines.append(f"Top memory-safety score: `{report['top_memory_safety_score']}`")
+    if report["next_planned_safety_candidate"]:
+        lines.append(f"Next planned safety candidate: `{report['next_planned_safety_candidate']}`")
     lines.extend(
         [
             "",

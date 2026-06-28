@@ -31,6 +31,16 @@ def load_config(repo_root: Path, config_path: Path | None = None) -> dict[str, A
     return payload
 
 
+def is_ready_chromium_root(chromium_root: Path) -> bool:
+    required = [
+        "build/config/rust.gni",
+        "mojo",
+        "third_party/blink",
+        "v8",
+    ]
+    return chromium_root.exists() and all((chromium_root / item).exists() for item in required)
+
+
 def resolve_chromium_root(repo_root: Path, explicit: Path | None = None) -> Path | None:
     if explicit is not None:
         return explicit
@@ -38,4 +48,7 @@ def resolve_chromium_root(repo_root: Path, explicit: Path | None = None) -> Path
     chromium_root = config.get("chromium_root")
     if not isinstance(chromium_root, str) or not chromium_root:
         return None
-    return Path(chromium_root)
+    root = Path(chromium_root)
+    if not is_ready_chromium_root(root):
+        return None
+    return root
