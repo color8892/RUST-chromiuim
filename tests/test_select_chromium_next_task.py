@@ -22,6 +22,10 @@ class SelectChromiumNextTaskTest(unittest.TestCase):
 
         self.assertEqual("chromium-preflight", selection["selected_task"]["id"])
         self.assertEqual("needs_chromium_root", selection["preflight_status"])
+        self.assertEqual(
+            "requires --chromium-root before this task can run",
+            selection["selected_task"]["blocked_reason"],
+        )
 
     def test_ready_checkout_selects_import_dry_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

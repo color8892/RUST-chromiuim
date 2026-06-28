@@ -44,7 +44,7 @@ def select_next_task(
         dependencies = set(task["depends_on"])
         if dependencies.issubset(completed):
             blocked_reason = None
-            if task["id"] != "chromium-preflight" and chromium_root is None:
+            if chromium_root is None:
                 blocked_reason = "requires --chromium-root before this task can run"
             return {
                 "schema_version": 1,

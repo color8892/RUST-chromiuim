@@ -77,6 +77,8 @@ python tools/check_chromium_integration_checklist.py
 python tools/check_chromium_import_consistency.py
 python tools/emit_chromium_cl_handoff.py
 python tools/check_chromium_checkout_preflight.py --chromium-root C:\path\to\chromium\src
+python tools/check_chromium_next_tasks.py
+python tools/select_chromium_next_task.py
 python tools/emit_standalone_readiness_report.py
 ```
 

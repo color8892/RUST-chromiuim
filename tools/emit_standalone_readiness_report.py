@@ -16,6 +16,7 @@ from tools.check_chromium_checkout_preflight import build_preflight_report
 from tools.check_chromium_integration_checklist import build_report as build_checklist_report
 from tools.check_chromium_integration_checklist import validate_checklist
 from tools.emit_chromium_cl_handoff import build_handoff
+from tools.select_chromium_next_task import select_next_task
 
 
 DEFAULT_OUTPUT_JSON = Path("target/reports/standalone_readiness_report.json")
@@ -37,6 +38,13 @@ def build_readiness_report(repo_root: Path) -> dict[str, Any]:
     )
     if preflight_violations:
         raise ValueError("; ".join(violation.render() for violation in preflight_violations))
+    next_task = select_next_task(
+        repo_root,
+        repo_root / "chromium_next_tasks.json",
+        repo_root / "chromium_import_manifest.json",
+        None,
+    )
+    selected = next_task["selected_task"]
 
     complete_items = checklist_report["item_status_counts"].get("complete", 0)
     chromium_required_items = checklist_report["item_status_counts"].get(
@@ -56,6 +64,9 @@ def build_readiness_report(repo_root: Path) -> dict[str, Any]:
         "chromium_destination": handoff["chromium_destination"],
         "import_file_count": handoff["import_file_count"],
         "preflight_status_without_root": preflight["status"],
+        "next_chromium_task": selected["id"] if selected is not None else None,
+        "next_chromium_task_title": selected["title"] if selected is not None else None,
+        "next_chromium_task_blocked_reason": selected["blocked_reason"] if selected is not None else None,
         "local_preflight_commands": handoff["local_preflight_commands"],
         "chromium_checkout_commands": handoff["chromium_checkout_commands"],
         "external_blockers": handoff["external_gates_not_satisfied_in_this_repo"],
@@ -74,10 +85,18 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"Chromium destination: `//{report['chromium_destination']}`",
         f"Import file count: `{report['import_file_count']}`",
         f"Preflight status without root: `{report['preflight_status_without_root']}`",
-        "",
-        "## Local Preflight Commands",
-        "",
+        f"Next Chromium task: `{report['next_chromium_task']}`",
+        f"Next Chromium task title: `{report['next_chromium_task_title']}`",
     ]
+    if report["next_chromium_task_blocked_reason"]:
+        lines.append(f"Next Chromium task blocked: `{report['next_chromium_task_blocked_reason']}`")
+    lines.extend(
+        [
+            "",
+            "## Local Preflight Commands",
+            "",
+        ]
+    )
     lines.extend(f"```powershell\n{command}\n```" for command in report["local_preflight_commands"])
     lines.extend(["", "## Chromium Checkout Commands", ""])
     lines.extend(f"```powershell\n{command}\n```" for command in report["chromium_checkout_commands"])
