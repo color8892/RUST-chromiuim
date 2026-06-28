@@ -45,7 +45,7 @@ REPORTS = [
         "name": "chromium_next_tasks",
         "order": 5,
         "json": "target/reports/chromium_next_tasks_report.json",
-        "markdown": None,
+        "markdown": "target/reports/chromium_next_tasks_report.md",
         "purpose": "Agent-ready task graph for work that requires a real Chromium checkout.",
     },
     {

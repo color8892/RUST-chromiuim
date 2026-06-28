@@ -13,6 +13,7 @@ from typing import Any, Sequence
 
 DEFAULT_MANIFEST = Path("chromium_next_tasks.json")
 DEFAULT_REPORT = Path("target/reports/chromium_next_tasks_report.json")
+DEFAULT_MARKDOWN = Path("target/reports/chromium_next_tasks_report.md")
 ALLOWED_STATUSES = {"ready", "requires_chromium_checkout", "blocked_external"}
 
 
@@ -78,6 +79,35 @@ def build_report(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def render_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# Chromium Next Tasks",
+        "",
+        "These tasks require a real Chromium checkout. They are ordered so an agent can pick the first unblocked task and produce reviewable evidence.",
+        "",
+    ]
+    for task in payload.get("tasks", []):
+        lines.extend(
+            [
+                f"## {task['id']}: {task['title']}",
+                "",
+                f"- Status: `{task['status']}`",
+                f"- Phase: `{task['phase']}`",
+                f"- Depends on: `{', '.join(task['depends_on']) if task['depends_on'] else 'none'}`",
+                "",
+                "Entry commands:",
+                "",
+            ]
+        )
+        lines.extend(f"```powershell\n{command}\n```" for command in task["entry_commands"])
+        lines.extend(["", "Acceptance gates:", ""])
+        lines.extend(f"- {gate}" for gate in task["acceptance_gates"])
+        lines.extend(["", "Evidence:", ""])
+        lines.extend(f"- `{evidence}`" for evidence in task["evidence"])
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def _validate_task(
     repo_root: Path,
     index: int,
@@ -122,6 +152,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--markdown", type=Path, default=DEFAULT_MARKDOWN)
     return parser.parse_args(argv)
 
 
@@ -133,9 +164,12 @@ def main(argv: Sequence[str]) -> int:
     if not violations:
         report = build_report(payload)
         args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        args.markdown.write_text(render_markdown(payload), encoding="utf-8")
         print(f"Chromium next tasks OK: {args.manifest}")
         print(f"Next tasks report written: {args.report}")
+        print(f"Next tasks Markdown written: {args.markdown}")
     return 1 if violations else 0
 
 
