@@ -67,6 +67,13 @@ is resolved with a coarser message batch or generated validator table.
 
 Use `chromium_import_manifest.json` and `tools/prepare_chromium_import.ps1` to
 stage this scaffold into a real Chromium checkout.
+The machine-readable boundary between standalone-complete work and
+Chromium-checkout work is tracked in `chromium_integration_checklist.json`.
+Validate it with:
+
+```powershell
+python tools/check_chromium_integration_checklist.py
+```
 
 Dry run:
 

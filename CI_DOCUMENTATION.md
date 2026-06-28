@@ -44,6 +44,7 @@ The repository enforces the following automated quality gates:
 | **P0 Fuzz Corpus Replay** | `run_fuzz_corpus_replay.ps1` | Generates and runs a C++ replay harness so committed seeds execute through Rust FFI and rollback C++ paths. |
 | **P0 Runtime Rollback Gate** | `run_rollback_gate.ps1` | Generates and runs a C++ harness proving each P0 adapter can toggle Rust, C++ rollback, and Rust restore. |
 | **P0 Standalone Reports** | `emit_fuzz_corpus_report.py`, `emit_p0_artifact_summary.py`, `emit_chromium_import_report.py` | Writes reviewable JSON reports under `target/reports/` for corpus coverage, artifacts, and Chromium import dry-run planning. |
+| **Chromium Integration Checklist** | `check_chromium_integration_checklist.py` | Keeps standalone-complete items separate from work that requires a real Chromium checkout. |
 | **P0 Perf Stability Settings** | `check_perf_stability.py` | Prevents benchmark gates from silently dropping below the required sample count or losing perf budgets. |
 | **Source / Artifact Guard** | `rust_hot_leaf_guard.py` | Enforces `#![no_std]` rules and ensures no disallowed external crate imports. |
 | **Binary Size Gate** | `rust_size_gate.py` | Ensures that Rust static libraries and individual rlib sizes stay within strict bounds. |
