@@ -11,3 +11,4 @@ __pycache__/
 *.lib
 *.rlib
 *.exe
+/chromium_checkout.local.json

@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "chromium_root": "C:\\src\\chromium\\src",
+  "depot_tools": "C:\\src\\depot_tools",
+  "checkout_parent": "C:\\src\\chromium"
+}

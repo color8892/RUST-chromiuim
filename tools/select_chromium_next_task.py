@@ -14,6 +14,7 @@ if __package__ is None or __package__ == "":
 
 from tools.check_chromium_checkout_preflight import build_preflight_report
 from tools.check_chromium_next_tasks import validate_manifest
+from tools.chromium_checkout_config import resolve_chromium_root
 from tools.emit_chromium_import_report import build_report as build_import_report
 
 
@@ -108,7 +109,9 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
 
 def main(argv: Sequence[str]) -> int:
     args = _parse_args(argv)
-    selection = select_next_task(Path.cwd(), args.tasks, args.import_manifest, args.chromium_root)
+    repo_root = Path.cwd()
+    chromium_root = resolve_chromium_root(repo_root, args.chromium_root)
+    selection = select_next_task(repo_root, args.tasks, args.import_manifest, chromium_root)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(selection, indent=2) + "\n", encoding="utf-8")
     task = selection["selected_task"]

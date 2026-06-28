@@ -10,6 +10,11 @@ from pathlib import Path
 import sys
 from typing import Any, Sequence
 
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.chromium_checkout_config import resolve_chromium_root
+
 
 DEFAULT_IMPORT_MANIFEST = Path("chromium_import_manifest.json")
 DEFAULT_OUTPUT = Path("target/reports/chromium_checkout_preflight.json")
@@ -100,7 +105,9 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
 
 def main(argv: Sequence[str]) -> int:
     args = _parse_args(argv)
-    report, violations = build_preflight_report(args.chromium_root, args.import_manifest)
+    repo_root = Path.cwd()
+    chromium_root = resolve_chromium_root(repo_root, args.chromium_root)
+    report, violations = build_preflight_report(chromium_root, args.import_manifest)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     for violation in violations:
