@@ -37,11 +37,17 @@ Run-GateStep "Python Gate Tools CLI Verification" {
     python tools/rust_size_gate.py --help > $null
     python tools/rust_perf_gate.py --help > $null
     python tools/check_p0_hot_leaf_registry.py --help > $null
+    python tools/check_fuzz_corpus_manifest.py --help > $null
 }
 
 # 2.0 P0 component registry.
 Run-GateStep "P0 Hot Leaf Registry" {
     python tools/check_p0_hot_leaf_registry.py
+}
+
+# 2.0.1 P0 fuzz corpus coverage contract.
+Run-GateStep "P0 Fuzz Corpus Manifest" {
+    python tools/check_fuzz_corpus_manifest.py
 }
 
 # 2.1 Chromium integration readiness scaffold.

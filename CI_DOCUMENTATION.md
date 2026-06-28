@@ -25,18 +25,20 @@ powershell -ExecutionPolicy Bypass -File tools/run_all_gates.ps1
    - Run `tools/run_cpp_bench.ps1` and verify that all speedup ratios meet budgets.
    - Run `tools/run_size_gate.ps1` to ensure binary bloat and import guards are respected.
 4. **Fuzz Smoke Verification**:
+   - Run `python tools/check_fuzz_corpus_manifest.py` to ensure every P0 component has valid, truncated, malformed, and component-specific fuzz seed coverage.
    - Run `tools/run_local_fuzz.ps1 --runs 10000` to ensure no panics or segmentation faults are introduced in FFI interfaces.
 
 ---
 
 ## 2. CI Quality Gates Overview
 
-The repository enforces six automated quality gates:
+The repository enforces the following automated quality gates:
 
 | Gate | Command | Description |
 |---|---|---|
 | **Rust Unit Tests** | `cargo test` | Verifies correctness of low-level Rust libraries. |
 | **P0 Hot Leaf Registry** | `check_p0_hot_leaf_registry.py` | Ensures every P0 leaf has Rust source, C++ adapter, baseline, budgets, rollback, fuzz, benchmark, and differential coverage. |
+| **P0 Fuzz Corpus Manifest** | `check_fuzz_corpus_manifest.py` | Ensures every P0 leaf has bounded seed data for required valid, malformed, truncated, and component-specific fuzz categories. |
 | **Source / Artifact Guard** | `rust_hot_leaf_guard.py` | Enforces `#![no_std]` rules and ensures no disallowed external crate imports. |
 | **Binary Size Gate** | `rust_size_gate.py` | Ensures that Rust static libraries and individual rlib sizes stay within strict bounds. |
 | **C++ Differential Tests** | `run_cpp_tests.ps1` | Runs 15,000+ prefix and mutation test cases, comparing C++ and Rust outputs. |

@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "max_seed_bytes": 4096,
+  "components": [
+    {
+      "name": "http_header_scanner",
+      "harness": "cpp_fuzz/main.cc",
+      "required_categories": [
+        "valid",
+        "truncated",
+        "malformed",
+        "limits"
+      ],
+      "seeds": [
+        {
+          "name": "valid_basic_headers",
+          "category": "valid",
+          "text": "Host: example.test\r\nConnection: close\r\n\r\n"
+        },
+        {
+          "name": "truncated_cr",
+          "category": "truncated",
+          "text": "Host: example.test\r"
+        },
+        {
+          "name": "bare_lf",
+          "category": "malformed",
+          "text": "Host: example.test\n\r\n"
+        },
+        {
+          "name": "long_header_name",
+          "category": "limits",
+          "text": "Very-Long-Header-Name-Used-For-Bounds-Validation: value\r\n\r\n"
+        }
+      ]
+    },
+    {
+      "name": "url_canonicalizer",
+      "harness": "cpp_fuzz/main.cc",
+      "required_categories": [
+        "valid",
+        "truncated",
+        "malformed",
+        "percent_decode",
+        "host_port"
+      ],
+      "seeds": [
+        {
+          "name": "valid_https_url",
+          "category": "valid",
+          "text": "https://example.test:443/a/b?x=1#frag"
+        },
+        {
+          "name": "truncated_percent_escape",
+          "category": "truncated",
+          "text": "https://example.test/%"
+        },
+        {
+          "name": "invalid_percent_escape",
+          "category": "malformed",
+          "text": "https://example.test/%zz"
+        },
+        {
+          "name": "percent_encoded_path",
+          "category": "percent_decode",
+          "text": "https://example.test/a%20b/%2f"
+        },
+        {
+          "name": "host_port_boundary",
+          "category": "host_port",
+          "text": "http://127.0.0.1:65535/"
+        }
+      ]
+    },
+    {
+      "name": "mojo_validator",
+      "harness": "cpp_fuzz/main.cc",
+      "required_categories": [
+        "valid",
+        "truncated",
+        "malformed",
+        "alignment",
+        "bounds"
+      ],
+      "seeds": [
+        {
+          "name": "valid_minimal_header",
+          "category": "valid",
+          "hex": "10000000000000000000000000000000"
+        },
+        {
+          "name": "truncated_header",
+          "category": "truncated",
+          "hex": "1000000000000000"
+        },
+        {
+          "name": "invalid_version",
+          "category": "malformed",
+          "hex": "10000000ffffffff0000000000000000"
+        },
+        {
+          "name": "unaligned_payload_size",
+          "category": "alignment",
+          "hex": "11000000000000000000000000000000"
+        },
+        {
+          "name": "oversized_declared_payload",
+          "category": "bounds",
+          "hex": "ffffffff000000000000000000000000"
+        }
+      ]
+    }
+  ]
+}
