@@ -151,7 +151,7 @@ if ($Mode -eq "all" -or $Mode -eq "header") {
     $headerReport = "target/bench/http_header_scanner.json"
     New-Item -ItemType Directory -Force -Path (Split-Path $headerReport) | Out-Null
     Write-Host "-> Running HTTP Header Scanner benchmarks..."
-    & $outputExe --mode header --json $headerReport --samples 11
+    & $outputExe --mode header --json $headerReport --samples 21
     Invoke-NativeChecked { python tools/rust_perf_gate.py --report $headerReport --budget-file budgets/http_header_scanner_perf.json }
     Write-Host ""
 }
@@ -160,7 +160,7 @@ if ($Mode -eq "all" -or $Mode -eq "url") {
     # 2. URL Canonicalizer Bench
     $urlReport = "target/bench/url_canonicalizer.json"
     Write-Host "-> Running URL Canonicalizer benchmarks..."
-    & $outputExe --mode url --json $urlReport --samples 11
+    & $outputExe --mode url --json $urlReport --samples 21
     Invoke-NativeChecked { python tools/rust_perf_gate.py --report $urlReport --budget-file budgets/url_canonicalizer_perf.json }
     Write-Host ""
 }
@@ -169,7 +169,7 @@ if ($Mode -eq "all" -or $Mode -eq "mojo") {
     # 3. Mojo IPC Validator Bench
     $mojoReport = "target/bench/mojo_validator.json"
     Write-Host "-> Running Mojo IPC Validator benchmarks..."
-    & $outputExe --mode mojo --json $mojoReport --samples 11
+    & $outputExe --mode mojo --json $mojoReport --samples 21
     Invoke-NativeChecked { python tools/rust_perf_gate.py --report $mojoReport --budget-file budgets/mojo_validator_perf.json }
     Write-Host ""
 }

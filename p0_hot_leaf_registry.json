@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "components": [
+    {
+      "name": "http_header_scanner",
+      "status": "production_candidate",
+      "rust_crate": "rust/hot_leaf/http_header_scanner",
+      "ffi_header": "include/chromium_rust_perf/http_header_scanner_ffi.h",
+      "cpp_adapter": [
+        "cpp/http_header_scanner_adapter.cc",
+        "cpp/http_header_scanner_adapter.h"
+      ],
+      "cpp_baseline": "cpp/http_header_scanner_baseline.h",
+      "perf_budget": "budgets/http_header_scanner_perf.json",
+      "size_artifact": "target/release/libchromium_rust_http_header_scanner.rlib",
+      "differential_harness": "cpp_test/main.cc",
+      "benchmark_harness": "cpp_bench/main.cc",
+      "fuzz_harness": "cpp_fuzz/main.cc",
+      "rollback_symbol": "HttpHeaderScanner::SetRollbackEnabled"
+    },
+    {
+      "name": "url_canonicalizer",
+      "status": "production_candidate",
+      "rust_crate": "rust/hot_leaf/url_canonicalizer",
+      "ffi_header": "include/chromium_rust_perf/url_canonicalizer_ffi.h",
+      "cpp_adapter": [
+        "cpp/url_canonicalizer_adapter.cc",
+        "cpp/url_canonicalizer_adapter.h"
+      ],
+      "cpp_baseline": "cpp/url_canonicalizer_baseline.h",
+      "perf_budget": "budgets/url_canonicalizer_perf.json",
+      "size_artifact": "target/release/libchromium_rust_url_canonicalizer.rlib",
+      "differential_harness": "cpp_test/main.cc",
+      "benchmark_harness": "cpp_bench/main.cc",
+      "fuzz_harness": "cpp_fuzz/main.cc",
+      "rollback_symbol": "UrlScanner::SetRollbackEnabled"
+    },
+    {
+      "name": "mojo_validator",
+      "status": "prototype_size_candidate",
+      "rust_crate": "rust/hot_leaf/mojo_validator",
+      "ffi_header": "include/chromium_rust_perf/mojo_validator_ffi.h",
+      "cpp_adapter": [
+        "cpp/mojo_validator_adapter.cc",
+        "cpp/mojo_validator_adapter.h"
+      ],
+      "cpp_baseline": "cpp/mojo_validator_baseline.h",
+      "perf_budget": "budgets/mojo_validator_perf.json",
+      "size_artifact": "target/release/libchromium_rust_mojo_validator.rlib",
+      "differential_harness": "cpp_test/main.cc",
+      "benchmark_harness": "cpp_bench/main.cc",
+      "fuzz_harness": "cpp_fuzz/main.cc",
+      "rollback_symbol": "MojoMessageValidator::SetRollbackEnabled"
+    }
+  ]
+}

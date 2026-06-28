@@ -36,6 +36,12 @@ Run-GateStep "Python Gate Tools CLI Verification" {
     python tools/rust_hot_leaf_guard.py --help > $null
     python tools/rust_size_gate.py --help > $null
     python tools/rust_perf_gate.py --help > $null
+    python tools/check_p0_hot_leaf_registry.py --help > $null
+}
+
+# 2.0 P0 component registry.
+Run-GateStep "P0 Hot Leaf Registry" {
+    python tools/check_p0_hot_leaf_registry.py
 }
 
 # 2.1 Chromium integration readiness scaffold.

@@ -36,6 +36,7 @@ The repository enforces six automated quality gates:
 | Gate | Command | Description |
 |---|---|---|
 | **Rust Unit Tests** | `cargo test` | Verifies correctness of low-level Rust libraries. |
+| **P0 Hot Leaf Registry** | `check_p0_hot_leaf_registry.py` | Ensures every P0 leaf has Rust source, C++ adapter, baseline, budgets, rollback, fuzz, benchmark, and differential coverage. |
 | **Source / Artifact Guard** | `rust_hot_leaf_guard.py` | Enforces `#![no_std]` rules and ensures no disallowed external crate imports. |
 | **Binary Size Gate** | `rust_size_gate.py` | Ensures that Rust static libraries and individual rlib sizes stay within strict bounds. |
 | **C++ Differential Tests** | `run_cpp_tests.ps1` | Runs 15,000+ prefix and mutation test cases, comparing C++ and Rust outputs. |

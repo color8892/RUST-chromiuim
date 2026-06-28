@@ -12,6 +12,8 @@ It intentionally starts with hot leaf modules instead of touching Chromium orche
 - `cpp/http_header_scanner_adapter.*`: small C++ facade for Chromium-side ownership and rollback integration.
 - `cpp/url_canonicalizer_adapter.*`: C++ facade that maps returned ranges into `std::string_view`.
 - `tools/rust_hot_leaf_guard.py`: source and artifact guard for panic, formatting, allocation, generic, and FFI-copy hazards.
+- `p0_hot_leaf_registry.json`: machine-checkable registry for P0 hot leaf migration readiness.
+- `tools/check_p0_hot_leaf_registry.py`: verifies every P0 leaf has source, adapters, baselines, budgets, rollback, benchmark, differential, and fuzz coverage.
 - `docs/chromium_rust_perf_size_policy.md`: project policy that future agents must follow.
 - `docs/chromium_integration_roadmap.md`: boundary document for real Chromium GN, Android supersize, WPT, and fuzz integration.
 
@@ -31,6 +33,7 @@ Run checks:
 ```powershell
 cargo test
 python -m unittest discover -s tests
+python tools/check_p0_hot_leaf_registry.py
 python tools/rust_hot_leaf_guard.py rust/hot_leaf rust/ffi_static
 powershell -ExecutionPolicy Bypass -File tools/run_size_gate.ps1
 ```
