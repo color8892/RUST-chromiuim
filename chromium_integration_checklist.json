@@ -61,6 +61,15 @@
             "tools/emit_p0_artifact_summary.py",
             "tools/emit_chromium_import_report.py"
           ]
+        },
+        {
+          "name": "chromium_next_tasks",
+          "status": "complete",
+          "evidence": [
+            "chromium_next_tasks.json",
+            "tools/check_chromium_next_tasks.py",
+            "tools/select_chromium_next_task.py"
+          ]
         }
       ]
     },
@@ -73,7 +82,8 @@
           "status": "requires_chromium_checkout",
           "evidence": [
             "BUILD.gn",
-            "chromium_import_manifest.json"
+            "chromium_import_manifest.json",
+            "chromium_next_tasks.json"
           ]
         },
         {

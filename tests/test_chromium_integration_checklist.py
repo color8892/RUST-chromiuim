@@ -21,7 +21,7 @@ class ChromiumIntegrationChecklistTest(unittest.TestCase):
 
         self.assertEqual([], [violation.render() for violation in violations])
         self.assertEqual(2, report["phase_count"])
-        self.assertGreater(report["item_status_counts"]["complete"], 0)
+        self.assertGreaterEqual(report["item_status_counts"]["complete"], 8)
         self.assertGreater(report["item_status_counts"]["requires_chromium_checkout"], 0)
 
     def test_rejects_missing_evidence(self) -> None:

@@ -5,7 +5,13 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from tools.check_chromium_next_tasks import build_report, render_markdown, validate_manifest
+from tools.check_chromium_next_tasks import (
+    REQUIRED_CHECKOUT_CHECKLIST_ITEMS,
+    build_report,
+    covered_checklist_items,
+    render_markdown,
+    validate_manifest,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -17,8 +23,17 @@ class ChromiumNextTasksTest(unittest.TestCase):
         report = build_report(payload)
 
         self.assertEqual([], [violation.render() for violation in violations])
-        self.assertGreaterEqual(report["task_count"], 5)
+        self.assertGreaterEqual(report["task_count"], 10)
         self.assertEqual(report["task_count"], report["status_counts"]["requires_chromium_checkout"])
+        self.assertEqual([], report["missing_checklist_items"])
+        self.assertEqual(
+            REQUIRED_CHECKOUT_CHECKLIST_ITEMS,
+            set(report["checklist_items_covered"]),
+        )
+        self.assertEqual(
+            REQUIRED_CHECKOUT_CHECKLIST_ITEMS,
+            covered_checklist_items(payload),
+        )
 
     def test_markdown_renders_agent_brief(self) -> None:
         payload, violations = validate_manifest(REPO_ROOT / "chromium_next_tasks.json", REPO_ROOT)

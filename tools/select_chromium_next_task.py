@@ -14,11 +14,35 @@ if __package__ is None or __package__ == "":
 
 from tools.check_chromium_checkout_preflight import build_preflight_report
 from tools.check_chromium_next_tasks import validate_manifest
+from tools.emit_chromium_import_report import build_report as build_import_report
 
 
 DEFAULT_TASKS = Path("chromium_next_tasks.json")
 DEFAULT_IMPORT_MANIFEST = Path("chromium_import_manifest.json")
 DEFAULT_OUTPUT = Path("target/reports/chromium_next_task_selection.json")
+
+
+def probe_completed_task_ids(
+    repo_root: Path,
+    chromium_root: Path | None,
+    import_manifest_path: Path,
+    preflight: dict[str, Any],
+    preflight_violations: list[Any],
+) -> set[str]:
+    completed: set[str] = set()
+    if chromium_root is None or preflight_violations or preflight["status"] != "ready":
+        return completed
+
+    completed.add("chromium-preflight")
+    import_report = build_import_report(repo_root, import_manifest_path)
+    if not import_report["missing_entries"]:
+        completed.add("chromium-import-dry-run")
+
+    manifest = json.loads(import_manifest_path.read_text(encoding="utf-8"))
+    destination = chromium_root / manifest["default_destination"]
+    if (destination / "BUILD.gn").exists():
+        completed.add("chromium-gn-target-import")
+    return completed
 
 
 def select_next_task(
@@ -32,11 +56,14 @@ def select_next_task(
         raise ValueError("; ".join(violation.render() for violation in violations))
     tasks = payload["tasks"]
     task_by_id = {task["id"]: task for task in tasks}
-    completed: set[str] = set()
-
     preflight, preflight_violations = build_preflight_report(chromium_root, import_manifest_path)
-    if chromium_root is not None and not preflight_violations and preflight["status"] == "ready":
-        completed.add("chromium-preflight")
+    completed = probe_completed_task_ids(
+        repo_root,
+        chromium_root,
+        import_manifest_path,
+        preflight,
+        preflight_violations,
+    )
 
     for task in tasks:
         if task["id"] in completed:

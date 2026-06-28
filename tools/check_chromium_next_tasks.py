@@ -15,6 +15,13 @@ DEFAULT_MANIFEST = Path("chromium_next_tasks.json")
 DEFAULT_REPORT = Path("target/reports/chromium_next_tasks_report.json")
 DEFAULT_MARKDOWN = Path("target/reports/chromium_next_tasks_report.md")
 ALLOWED_STATUSES = {"ready", "requires_chromium_checkout", "blocked_external"}
+REQUIRED_CHECKOUT_CHECKLIST_ITEMS = {
+    "gn_target_import",
+    "android_official_build_supersize",
+    "chromium_fuzz_corpus_clusterfuzz",
+    "web_tests_wpt",
+    "real_callsite_wiring",
+}
 
 
 @dataclass(frozen=True)
@@ -57,16 +64,29 @@ def validate_manifest(path: Path, repo_root: Path) -> tuple[dict[str, Any], list
     return payload, violations
 
 
+def covered_checklist_items(payload: dict[str, Any]) -> set[str]:
+    covered: set[str] = set()
+    for task in payload.get("tasks", []):
+        checklist_item = task.get("checklist_item")
+        if isinstance(checklist_item, str) and checklist_item:
+            covered.add(checklist_item)
+    return covered
+
+
 def build_report(payload: dict[str, Any]) -> dict[str, Any]:
     tasks = payload.get("tasks", [])
     status_counts: dict[str, int] = {}
     for task in tasks:
         status = task["status"]
         status_counts[status] = status_counts.get(status, 0) + 1
+    checklist_coverage = sorted(covered_checklist_items(payload))
+    missing_checklist_items = sorted(REQUIRED_CHECKOUT_CHECKLIST_ITEMS - set(checklist_coverage))
     return {
         "schema_version": 1,
         "task_count": len(tasks),
         "status_counts": status_counts,
+        "checklist_items_covered": checklist_coverage,
+        "missing_checklist_items": missing_checklist_items,
         "tasks": [
             {
                 "id": task["id"],
@@ -163,6 +183,10 @@ def main(argv: Sequence[str]) -> int:
         print(violation.render(), file=sys.stderr)
     if not violations:
         report = build_report(payload)
+        if report["missing_checklist_items"]:
+            for item in report["missing_checklist_items"]:
+                print(f"missing checklist item: {item}", file=sys.stderr)
+            return 1
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.markdown.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

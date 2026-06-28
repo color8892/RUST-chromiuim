@@ -10,6 +10,7 @@
   "files": [
     "BUILD.gn",
     "chromium_integration_checklist.json",
+    "chromium_next_tasks.json",
     "Cargo.toml",
     "Cargo.lock",
     "README.md",

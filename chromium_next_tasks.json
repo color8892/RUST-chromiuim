@@ -41,8 +41,9 @@
       ]
     },
     {
-      "id": "chromium-gn-wiring-http",
-      "title": "Wire first HTTP header scanner GN target",
+      "id": "chromium-gn-target-import",
+      "title": "Import scaffold and wire first hot-leaf GN target",
+      "checklist_item": "gn_target_import",
       "phase": "chromium_checkout_integration",
       "status": "requires_chromium_checkout",
       "depends_on": [
@@ -54,23 +55,69 @@
         "autoninja -C out/rust-perf //third_party/rust/chromium_rust_perf:rust_perf_unittests"
       ],
       "acceptance_gates": [
-        "GN generation succeeds",
+        "GN generation succeeds with the Rust target enabled",
         "rust_perf_unittests target builds",
+        "Chromium C++ target links against the Rust static library",
         "old C++ path remains available behind rollback"
       ],
       "evidence": [
         "BUILD.gn",
         "tools/emit_chromium_cl_handoff.py",
-        "tools/run_rollback_gate.ps1"
+        "tools/run_rollback_gate.ps1",
+        "chromium_import_manifest.json"
+      ]
+    },
+    {
+      "id": "chromium-differential-tests",
+      "title": "Run Chromium differential tests on shared corpus",
+      "phase": "chromium_checkout_integration",
+      "status": "requires_chromium_checkout",
+      "depends_on": [
+        "chromium-gn-target-import"
+      ],
+      "entry_commands": [
+        "autoninja -C out/rust-perf //third_party/rust/chromium_rust_perf:rust_perf_unittests",
+        "out/rust-perf/rust_perf_unittests --gtest_filter=*Differential*"
+      ],
+      "acceptance_gates": [
+        "differential tests compare old C++ and Rust outputs on the same corpus",
+        "zero output mismatches on committed seeds"
+      ],
+      "evidence": [
+        "cpp_test/main.cc",
+        "tools/run_cpp_tests.ps1"
+      ]
+    },
+    {
+      "id": "chromium-benchmark-gate",
+      "title": "Run Chromium benchmark gate for latency and allocations",
+      "phase": "chromium_checkout_integration",
+      "status": "requires_chromium_checkout",
+      "depends_on": [
+        "chromium-gn-target-import"
+      ],
+      "entry_commands": [
+        "autoninja -C out/rust-perf //third_party/rust/chromium_rust_perf:rust_perf_benchmarks",
+        "out/rust-perf/rust_perf_benchmarks --benchmark_format=json"
+      ],
+      "acceptance_gates": [
+        "benchmark target reports both latency and allocation count",
+        "Rust path meets or beats the standalone perf budget"
+      ],
+      "evidence": [
+        "cpp_bench/main.cc",
+        "tools/run_cpp_bench.ps1",
+        "tools/check_perf_stability.py"
       ]
     },
     {
       "id": "chromium-supersize",
       "title": "Run Android official build and supersize diff",
+      "checklist_item": "android_official_build_supersize",
       "phase": "chromium_checkout_integration",
       "status": "requires_chromium_checkout",
       "depends_on": [
-        "chromium-gn-wiring-http"
+        "chromium-gn-target-import"
       ],
       "entry_commands": [
         "tools/binary_size/supersize.py archive --output-directory out/rust-perf size-after.size",
@@ -87,25 +134,88 @@
       ]
     },
     {
-      "id": "chromium-fuzz-wpt",
-      "title": "Attach Chromium fuzz and web-test coverage",
+      "id": "chromium-fuzz-corpus",
+      "title": "Attach Chromium libFuzzer target and seed corpora",
+      "checklist_item": "chromium_fuzz_corpus_clusterfuzz",
       "phase": "chromium_checkout_integration",
       "status": "requires_chromium_checkout",
       "depends_on": [
-        "chromium-gn-wiring-http"
+        "chromium-gn-target-import"
       ],
       "entry_commands": [
-        "Add Chromium-style fuzz target for the imported leaf",
-        "Run relevant web_tests or WPT only after a browser-visible callsite is wired"
+        "autoninja -C out/rust-perf //third_party/rust/chromium_rust_perf:rust_perf_fuzzers",
+        "out/rust-perf/rust_perf_fuzzers --runs=1000 fuzz/corpus/http_header_scanner"
       ],
       "acceptance_gates": [
         "fuzz target covers malformed, truncated, bounds, alignment, and capacity cases",
-        "browser-visible behavior has differential or web-test coverage",
         "local random fuzz smoke is not treated as Chromium fuzz coverage"
       ],
       "evidence": [
         "fuzz_corpus_manifest.json",
         "tools/run_fuzz_corpus_replay.ps1",
+        "docs/chromium_integration_roadmap.md"
+      ]
+    },
+    {
+      "id": "chromium-real-callsite-wiring",
+      "title": "Wire Rust leaf into a browser-visible Chromium callsite",
+      "checklist_item": "real_callsite_wiring",
+      "phase": "chromium_checkout_integration",
+      "status": "requires_chromium_checkout",
+      "depends_on": [
+        "chromium-gn-target-import"
+      ],
+      "entry_commands": [
+        "Add a narrow C++ adapter callsite in the relevant Chromium leaf target",
+        "Keep rollback flag available at the callsite boundary"
+      ],
+      "acceptance_gates": [
+        "Rust leaf is invoked from a user-visible browser path",
+        "rollback flag can force the existing C++ path at runtime"
+      ],
+      "evidence": [
+        "docs/chromium_integration_roadmap.md",
+        "tools/emit_chromium_cl_handoff.py"
+      ]
+    },
+    {
+      "id": "chromium-browser-perf",
+      "title": "Verify browser startup, memory, and Speedometer metrics",
+      "phase": "chromium_checkout_integration",
+      "status": "requires_chromium_checkout",
+      "depends_on": [
+        "chromium-real-callsite-wiring"
+      ],
+      "entry_commands": [
+        "Run startup and memory waterfalls for the touched component",
+        "Run Speedometer and relevant page-load benchmarks"
+      ],
+      "acceptance_gates": [
+        "browser benchmarks show no regression for startup, memory, Speedometer, and page-load metrics"
+      ],
+      "evidence": [
+        "docs/chromium_integration_roadmap.md",
+        "tools/check_perf_stability.py"
+      ]
+    },
+    {
+      "id": "chromium-web-tests-wpt",
+      "title": "Run component web_tests or WPT after callsite wiring",
+      "checklist_item": "web_tests_wpt",
+      "phase": "chromium_checkout_integration",
+      "status": "requires_chromium_checkout",
+      "depends_on": [
+        "chromium-real-callsite-wiring"
+      ],
+      "entry_commands": [
+        "third_party/blink/tools/run_web_tests.py -t Release --jobs=4 <relevant-tests>",
+        "Run targeted WPT only if the callsite affects web-platform-visible behavior"
+      ],
+      "acceptance_gates": [
+        "component-specific web tests or WPT run only after the Rust leaf is wired into a user-visible browser path",
+        "browser-visible behavior has differential or web-test coverage"
+      ],
+      "evidence": [
         "docs/chromium_integration_roadmap.md"
       ]
     }
