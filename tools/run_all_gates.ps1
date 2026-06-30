@@ -52,6 +52,7 @@ Run-GateStep "Python Gate Tools CLI Verification" {
     python tools/select_chromium_next_task.py --help > $null
     python tools/check_chromium_rust_safety_candidates.py --help > $null
     python tools/emit_standalone_readiness_report.py --help > $null
+    python tools/emit_progress_report.py --help > $null
     python tools/emit_reports_manifest.py --help > $null
 }
 
@@ -88,6 +89,7 @@ Run-GateStep "P0 Standalone Reports" {
     python tools/select_chromium_next_task.py
     python tools/check_chromium_rust_safety_candidates.py
     python tools/emit_standalone_readiness_report.py
+    python tools/emit_progress_report.py
     python tools/emit_reports_manifest.py
 }
 

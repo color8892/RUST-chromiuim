@@ -43,6 +43,7 @@ Invoke-NativeChecked { python tools/emit_p0_artifact_summary.py }
 Invoke-NativeChecked { python tools/emit_chromium_import_report.py }
 Invoke-NativeChecked { python tools/emit_chromium_cl_handoff.py }
 Invoke-NativeChecked { python tools/emit_standalone_readiness_report.py }
+Invoke-NativeChecked { python tools/emit_progress_report.py }
 Invoke-NativeChecked { python tools/emit_reports_manifest.py }
 
 Write-Host ""

@@ -56,6 +56,7 @@ The repository enforces the following automated quality gates:
 | **Chromium Next Tasks** | `check_chromium_next_tasks.py` | Validates an agent-ready task graph and Markdown brief for work that requires a real Chromium checkout. |
 | **Chromium Next Task Selection** | `select_chromium_next_task.py` | Selects the next actionable Chromium integration task from the task graph and checkout preflight state. |
 | **Standalone Readiness Report** | `emit_standalone_readiness_report.py` | Summarizes completed standalone gates, remaining Chromium-checkout blockers, and next commands under `target/reports/`. |
+| **Progress Report** | `emit_progress_report.py` | Emits standalone and overall Chromium migration percentage estimates under `target/reports/`. |
 | **Reports Manifest** | `emit_reports_manifest.py` | Indexes generated report artifacts and their reading order under `target/reports/reports_manifest.json`. |
 | **P0 Perf Stability Settings** | `check_perf_stability.py` | Prevents benchmark gates from silently dropping below the required sample count or losing perf budgets. |
 | **Source / Artifact Guard** | `rust_hot_leaf_guard.py` | Enforces `#![no_std]` rules and ensures no disallowed external crate imports. |
