@@ -1,6 +1,7 @@
 /.codegraph/
 /.codebase-memory/
 /target/
+/terminals/
 __pycache__/
 *.py[cod]
 *.pdb
